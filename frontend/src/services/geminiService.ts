@@ -1,9 +1,21 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+let ai: any = null;
+try {
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey: apiKey });
+  }
+} catch(e) {
+  console.warn("Gemini Client not initialized");
+}
 
 export const analyzeEvidence = async (fileName: string, description: string) => {
+  if (!ai) {
+    console.error("Gemini API key is not configured. Please set VITE_GEMINI_API_KEY in .env");
+    return null;
+  }
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",

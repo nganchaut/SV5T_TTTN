@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { authService } from '../services/authService';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -41,9 +42,9 @@ const Layout: React.FC<LayoutProps> = ({ children, userType, onNavigate }) => {
                   if (userType === 'guest') {
                     onNavigate('login');
                   } else {
+                    authService.logout();
                     onNavigate('home');
-                    // In a real app, we'd call a logout function here
-                    window.location.reload(); // Simple way to reset state for demo
+                    window.location.reload(); 
                   }
                 }}
               >

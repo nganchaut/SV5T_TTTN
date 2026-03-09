@@ -18,6 +18,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const [level, setLevel] = useState<EvidenceLevel>(EvidenceLevel.KHOA);
   const [type, setType] = useState<EvidenceType>(EvidenceType.NO_DECISION);
   const [decisionNumber, setDecisionNumber] = useState('');
+  const [qty, setQty] = useState<number | ''>('');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -42,6 +43,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
       setSubCriterionId(availableSubCriteria[0].id);
     }
   }, [availableSubCriteria, subCriterionName]);
+
+  const selectedSubCriterion = useMemo(() => availableSubCriteria.find(sc => sc.id === subCriterionId), [availableSubCriteria, subCriterionId]);
+  const showQtyInput = selectedSubCriterion?.minQty !== undefined;
 
   const showDecisionInput = type !== EvidenceType.NO_DECISION;
 
@@ -69,6 +73,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
     if (!subCriterionId) { setError('Vui lòng chọn tiêu chí cụ thể.'); return; }
     if (!name.trim()) { setError('Vui lòng nhập tên hoạt động hoặc tên chứng chỉ.'); return; }
     if (showDecisionInput && !decisionNumber.trim()) { setError('Vui lòng nhập số hiệu quyết định hoặc mã số chứng chỉ.'); return; }
+    if (showQtyInput && (qty === '' || qty <= 0)) { setError('Vui lòng nhập số lượng (số ngày/mức độ) hợp lệ.'); return; }
     if (!file) { setError('Vui lòng đính kèm tập tin minh chứng (PDF hoặc Ảnh).'); return; }
 
     const newEvidence: Evidence = {
@@ -78,6 +83,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
       level,
       type,
       decisionNumber: showDecisionInput ? decisionNumber.trim() : undefined,
+      qty: showQtyInput && typeof qty === 'number' ? qty : undefined,
       fileUrl: URL.createObjectURL(file),
       fileName: file.name,
       date: new Date().toISOString().split('T')[0],
@@ -178,6 +184,22 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
               onChange={(e) => setDecisionNumber(e.target.value)} 
               className="w-full px-5 py-4 border-2 border-gray-100 font-bold outline-none focus:border-blue-900 bg-white text-xs text-gray-900 shadow-sm" 
               placeholder="VD: 123/QĐ-ĐHKT" 
+            />
+          </div>
+        )}
+
+        {showQtyInput && (
+          <div className="animate-fade-in">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">
+              Số lượng (VD: Số ngày tình nguyện, số lần hiến máu) <span className="text-red-500">*</span>
+            </label>
+            <input 
+              type="number" 
+              min="1"
+              value={qty} 
+              onChange={(e) => setQty(e.target.value ? parseInt(e.target.value, 10) : '')} 
+              className="w-full px-5 py-4 border-2 border-gray-100 font-bold outline-none focus:border-blue-900 bg-white text-xs text-gray-900 shadow-sm" 
+              placeholder={`Yêu cầu tối thiểu: ${selectedSubCriterion?.minQty}`} 
             />
           </div>
         )}
