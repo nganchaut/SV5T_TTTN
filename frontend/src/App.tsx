@@ -7,10 +7,13 @@ import { checkHardMet } from './pages/StudentDashboard';
 import { authService } from './services/authService';
 import { studentService } from './services/studentService';
 import { adminService, publicService } from './services/adminService';
+import { useUI } from './context/UIContext';
+import { apiClient } from './services/apiClient';
 
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast, confirm } = useUI();
 
   const [userRole, setUserRole] = useState<'student' | 'admin' | 'guest'>('guest');
   const [faces, setFaces] = useState<FeaturedFace[]>([]);
@@ -42,11 +45,24 @@ const App: React.FC = () => {
     // We just don't want to force userRole to guest when browsing home.
   }, [location.pathname]);
 
+  const [allCriteria, setAllCriteria] = useState<any[]>([]);
+
   // Auth & Data Fetching Effect
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       const currentUser = authService.getCurrentUser();
+      
+      const loadCriteria = async () => {
+      try {
+        const response = await apiClient.get('/api/criteria/');
+        setAllCriteria(response.data);
+      } catch (err) {
+        console.error('Failed to load criteria:', err);
+      }
+    };
+      await loadCriteria();
+
       if (!currentUser) {
         setUserRole('guest');
         setLoading(false);
@@ -60,14 +76,12 @@ const App: React.FC = () => {
           setStudents(data);
         } else {
           setUserRole('student');
-          // Fake getting student Id from currentUser
-          const sId = currentUser.studentId || 'SV001';
-          const myProfile = await studentService.getProfile(sId);
+          const myProfile = await studentService.getProfile();
           setStudents([myProfile]);
           setActiveStudentId(myProfile.id);
         }
       } catch (err) {
-        console.error("Lỗi khi fetch API giả lập:", err);
+        console.error("Lỗi khi fetch API:", err);
       } finally {
         setLoading(false);
       }
@@ -76,35 +90,13 @@ const App: React.FC = () => {
     fetchData();
   }, [userRole]);
 
-  // Handle auto score update (Frontend projection before save)
-  useEffect(() => {
-    if (!student || student.id === 'LOADING') return;
-
-    let score = 0;
-    (Object.values(student.evidences) as Evidence[][]).forEach(list => {
-      list.forEach(ev => {
-        if (ev.status === 'Approved' || (student.status === 'Draft' || student.status === 'Submitted' || student.status === 'Processing')) {
-          score += ev.points;
-        }
-      });
-    });
-    if (student.isPartyMember) score += 0.4;
-    if (student.gpa >= 3.4) score += 0.1;
-    if (student.trainingPoints >= 90) score += 0.1;
-
-    const newTotal = Number(score.toFixed(1));
-    if (student.totalScore !== newTotal && userRole === 'student') {
-      // In a real app we might debounce this PUT request, 
-      // but here we just optimistically update the state and fire the API when user actually presses save or via useEffect
-      setStudents(prev => prev.map(s => s.id === student.id ? { ...s, totalScore: newTotal } : s));
-    }
-  }, [student?.evidences, student?.isPartyMember, student?.gpa, student?.trainingPoints, student?.status, userRole]);
+  // Handle auto score update (Frontend projection before save) - REMOVED to prevent input jumping cycles
+  // Score should be calculated dynamically for display or updated only on save
 
 
   // ================= STUDENT ACTIONS =================
 
   const addEvidence = async (type: CriterionType, ev: Evidence) => {
-    const currentUser = authService.getCurrentUser();
     // Optimistic UI: add evidence immediately so checkHardMet sees it right away
     setStudents(prev => prev.map(s => s.id === student.id ? {
       ...s,
@@ -114,9 +106,9 @@ const App: React.FC = () => {
       }
     } : s));
     try {
-      const updatedProfile = await studentService.addEvidence(type, ev, currentUser?.studentId);
+      const updatedProfile = await studentService.addEvidence(type, ev);
       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
-    } catch (err) {
+    } catch (err: any) {
       console.error('addEvidence failed:', err);
       // Rollback on failure
       setStudents(prev => prev.map(s => s.id === student.id ? {
@@ -130,7 +122,6 @@ const App: React.FC = () => {
   };
 
   const removeEvidence = async (type: CriterionType, id: string) => {
-    const currentUser = authService.getCurrentUser();
     // Optimistic UI: remove evidence immediately
     setStudents(prev => prev.map(s => s.id === student.id ? {
       ...s,
@@ -140,7 +131,7 @@ const App: React.FC = () => {
       }
     } : s));
     try {
-      const updatedProfile = await studentService.removeEvidence(type, id, currentUser?.studentId);
+      const updatedProfile = await studentService.removeEvidence(type, id);
       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
     } catch (err) {
       console.error('removeEvidence failed:', err);
@@ -148,53 +139,55 @@ const App: React.FC = () => {
   };
 
   const updateProfile = async (data: Partial<StudentProfile>) => {
-    const currentUser = authService.getCurrentUser();
-    // Optimistic UI update (update exactly the active student in the list)
-    setStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...data } : s));
-    // Real API Call (don't block UI input, just let it sync in background)
-    studentService.updateProfile(data, currentUser?.studentId).then(updatedProfile => {
-       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
-    }).catch(console.error);
+    if (!activeStudentId) return;
+    
+    // Optimistic UI update
+    setStudents(prev => prev.map(s => s.id === activeStudentId ? { ...s, ...data } : s));
+    
+    // API Call
+    try {
+      const updatedProfile = await studentService.updateProfile(data);
+      setStudents(prev => prev.map(s => s.id === updatedProfile.id ? { ...s, ...updatedProfile } : s));
+    } catch (err) {
+      console.error('updateProfile failed:', err);
+    }
   };
 
   const updateEvidenceExplanation = async (type: CriterionType, id: string, explanation: string) => {
-    const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainEvidence(type, id, explanation, currentUser?.studentId);
+    const updatedProfile = await studentService.explainEvidence(type, id, explanation);
     setStudents([updatedProfile]);
   };
 
   const updateFieldExplanation = async (field: keyof StudentProfile['verifications'], explanation: string) => {
-    const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainField(field, explanation, currentUser?.studentId);
+    const updatedProfile = await studentService.explainField(field, explanation);
     setStudents([updatedProfile]);
   };
 
   const handleResubmitExplanation = async () => {
-    if (window.confirm("Bạn xác nhận gửi phản hồi giải trình?")) {
-      const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
+    const ok = await confirm({ title: 'Xác nhận gửi phản hồi', message: 'Bạn xác nhận gửi phản hồi giải trình này cho cán bộ xét duyệt?' });
+    if (ok) {
+      const updatedProfile = await studentService.submitProfile();
       setStudents([updatedProfile]);
-      alert("Đã gửi phản hồi giải trình thành công!");
+      toast("✅ Đã gửi phản hồi giải trình thành công!");
     }
   };
 
   const handleSubmit = async () => {
-    if (Object.values(CriterionType).every(cat => checkHardMet(cat, student))) {
-      const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
+    if (Object.values(CriterionType).every(cat => checkHardMet(cat, student, allCriteria))) {
+      const updatedProfile = await studentService.submitProfile();
       setStudents([updatedProfile]);
-      alert('Hồ sơ đã gửi thành công!');
+      toast('✅ Hồ sơ đã gửi thành công!');
     } else {
-      alert('Bạn chưa đạt đủ các chuẩn cứng cơ bản.');
+      toast('❌ Bạn chưa đạt đủ các chuẩn cứng cơ bản.', 'error');
     }
   };
 
   const handleUnsubmit = async () => {
-    if (window.confirm("Bạn có chắc chắn muốn hủy nộp hồ sơ để chỉnh sửa lại không?")) {
-      const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.unsubmitProfile(currentUser?.studentId);
+    const ok = await confirm({ title: 'Rút hồ sơ', message: 'Bạn có chắc chắn muốn hủy nộp hồ sơ để chỉnh sửa lại không?', variant: 'danger', confirmText: 'Rút hồ sơ' });
+    if (ok) {
+      const updatedProfile = await studentService.unsubmitProfile();
       setStudents([updatedProfile]);
-      alert("Đã hủy nộp hồ sơ! Bạn có thể chỉnh sửa ngay bây giờ.");
+      toast("✅ Đã hủy nộp hồ sơ! Bạn có thể chỉnh sửa ngay bây giờ.");
     }
   };
 
@@ -255,7 +248,7 @@ const App: React.FC = () => {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50 flex-col gap-4">
         <i className="fas fa-circle-notch fa-spin text-4xl text-blue-900"></i>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Đang tải dữ liệu từ MSW...</p>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Đang tải dữ liệu...</p>
       </div>
     );
   }
@@ -284,6 +277,7 @@ const App: React.FC = () => {
         handleAddFace={handleAddFace}
         handleUpdateFace={handleUpdateFace}
         handleDeleteFace={handleDeleteFace}
+        allCriteria={allCriteria}
       />
     </Layout>
   );

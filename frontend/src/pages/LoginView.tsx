@@ -113,7 +113,6 @@ const LoginView: React.FC<{ onLogin: (role: 'student' | 'admin', studentId?: str
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-between">
                 <span>{role === 'student' ? 'Mã sinh viên / Email Edu' : 'Tên đăng nhập / Email Admin'}</span>
-                {role === 'admin' && isLoginState && <span className="text-orange-500">Dùng "admin" để test</span>}
               </label>
               <div className="relative">
                 <i className="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>
@@ -155,18 +154,11 @@ const LoginView: React.FC<{ onLogin: (role: 'student' | 'admin', studentId?: str
               {isLoginState ? 'Đăng nhập ngay' : 'Tạo tài khoản'}
             </button>
 
-            <div className="text-center pt-2">
-              <button 
-                type="button" 
-                onClick={toggleMode}
-                className="text-xs font-bold text-gray-500"
-              >
-                {isLoginState ? (
-                  <>Chưa có tài khoản? <span className="text-orange-500 hover:text-orange-600 uppercase tracking-widest text-[10px] ml-1">Đăng ký ngay</span></>
-                ) : (
-                  <>Đã có tài khoản? <span className="text-[#0054a6] hover:text-[#002b5c] uppercase tracking-widest text-[10px] ml-1">Đăng nhập</span></>
-                )}
-              </button>
+            <div className="text-center pt-4 pb-1">
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+                <i className="fas fa-info-circle mr-1 text-blue-400"></i>
+                Tài khoản được cấp bởi Ban thư ký — Liên hệ đơn vị quản lý nếu chưa có tài khoản.
+              </p>
             </div>
           </form>
         </div>

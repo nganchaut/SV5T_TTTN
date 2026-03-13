@@ -38,6 +38,8 @@ class MinhChung(models.Model):
     CapDo = models.CharField(max_length=50, choices=CAP_DO_CHOICES)
     LoaiMinhChung = models.CharField(max_length=50, choices=LOAI_CHOICES)
     SoQuyetDinh = models.CharField(max_length=100, blank=True, null=True)
+    # Số lượng: số ngày tình nguyện, số lần hiến máu, v.v.
+    SoLuong = models.IntegerField(blank=True, null=True)
     DuongDanFile = models.FileField(upload_to=minh_chung_upload_path, blank=True, null=True)
     TenFile = models.CharField(max_length=200, blank=True, null=True)
     NgayNop = models.DateField(auto_now_add=True)

@@ -31,6 +31,7 @@ interface AppRoutesProps {
   handleAddFace: (face: Omit<FeaturedFace, 'id'>) => void;
   handleUpdateFace: (id: string, face: Partial<FeaturedFace>) => void;
   handleDeleteFace: (id: string) => void;
+  allCriteria: any[];
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
@@ -54,7 +55,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   handleUpdateFieldVerification,
   handleAddFace,
   handleUpdateFace,
-  handleDeleteFace
+  handleDeleteFace,
+  allCriteria
 }) => {
   return (
     <Routes>
@@ -64,6 +66,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
         <ProtectedRoute allowedRoles={['student']}>
           <StudentDashboard
             student={student}
+            allCriteria={allCriteria}
             addEvidence={addEvidence}
             removeEvidence={removeEvidence}
             updateProfile={updateProfile}
@@ -80,6 +83,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
           <AdminDashboard
             students={students}
             selectedStudent={student}
+            allCriteriaProps={allCriteria}
             onSelectStudent={setActiveStudentId}
             onUpdateStatus={handleAdminUpdateStatus}
             onUpdateEvidenceStatus={handleAdminUpdateEvidenceStatus}

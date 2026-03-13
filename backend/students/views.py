@@ -33,7 +33,9 @@ class SinhVienMeView(APIView):
         serializer = SinhVienUpdateSerializer(sv, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(SinhVienProfileSerializer(sv).data)
+        # Refresh object from DB to get latest related data (minh_chung, xac_minh)
+        sv.refresh_from_db()
+        return Response(SinhVienProfileSerializer(sv, context={'request': request}).data)
 
 
 class SinhVienSubmitView(APIView):
@@ -97,7 +99,7 @@ class AdminSinhVienListView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        qs = SinhVien.objects.select_related('TaiKhoan').prefetch_related('xac_minh')
+        qs = SinhVien.objects.select_related('TaiKhoan').prefetch_related('xac_minh').exclude(TrangThaiHoSo='Draft')
 
         # Filter
         trang_thai = request.query_params.get('trangThai')
@@ -171,7 +173,7 @@ class AdminSinhVienRejectView(APIView):
 class AdminSinhVienFeedbackView(APIView):
     permission_classes = [IsAdmin]
 
-    def patch(self, request, pk):
+    def post(self, request, pk):
         try:
             sv = SinhVien.objects.get(pk=pk)
         except SinhVien.DoesNotExist:
