@@ -6,7 +6,8 @@ from criteria.models import TieuChi
 class MinhChungSerializer(serializers.ModelSerializer):
     TrangThaiDisplay = serializers.CharField(source='get_TrangThai_display', read_only=True)
     CapDoDisplay = serializers.CharField(source='get_CapDo_display', read_only=True)
-    is_tieu_chi_cung = serializers.BooleanField(read_only=True)
+    is_tieu_chi_cung = serializers.ReadOnlyField() # Sử dụng property từ model
+    TieuChiMa = serializers.ReadOnlyField(source='TieuChi.MaTieuChi')
     NhomTieuChiTen = serializers.CharField(source='TieuChi.NhomTieuChi.TenNhom', read_only=True)
     TieuChiMoTa = serializers.CharField(source='TieuChi.MoTa', read_only=True)
     FileUrl = serializers.SerializerMethodField()
@@ -14,10 +15,10 @@ class MinhChungSerializer(serializers.ModelSerializer):
     class Meta:
         model = MinhChung
         fields = [
-            'id', 'SinhVien', 'TieuChi',
+            'id', 'SinhVien', 'TieuChi', 'TieuChiMa',
             'NhomTieuChiTen', 'TieuChiMoTa',
             'TenMinhChung', 'CapDo', 'CapDoDisplay',
-            'LoaiMinhChung', 'SoQuyetDinh',
+            'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
             'DuongDanFile', 'FileUrl', 'TenFile', 'NgayNop',
             'Diem', 'is_tieu_chi_cung',
             'TrangThai', 'TrangThaiDisplay',
@@ -38,8 +39,7 @@ class MinhChungSerializer(serializers.ModelSerializer):
 
 class MinhChungSubmitSerializer(serializers.ModelSerializer):
     """Dùng khi sinh viên nộp minh chứng"""
-    TieuChi = serializers.SlugRelatedField(
-        slug_field='MaTieuChi',
+    TieuChi = serializers.PrimaryKeyRelatedField(
         queryset=TieuChi.objects.all()
     )
     
@@ -47,13 +47,12 @@ class MinhChungSubmitSerializer(serializers.ModelSerializer):
         model = MinhChung
         fields = [
             'TieuChi', 'TenMinhChung', 'CapDo',
-            'LoaiMinhChung', 'SoQuyetDinh',
+            'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
             'DuongDanFile', 'TenFile',
         ]
 
     def validate(self, data):
         tieu_chi = data.get('TieuChi')
-        cap_do = data.get('CapDo')
         loai = data.get('LoaiMinhChung')
 
         # Nếu tiêu chí yêu cầu số quyết định

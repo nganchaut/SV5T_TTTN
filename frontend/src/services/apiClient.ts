@@ -3,9 +3,6 @@ import axios from 'axios';
 // Create an Axios instance using the base URL from environment variables
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Request interceptor to attach the JWT token if it exists

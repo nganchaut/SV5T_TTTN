@@ -1,22 +1,29 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { CriterionType, EvidenceLevel, EvidenceType, Evidence } from '../types';
-import { SUB_CRITERIA } from '../constants';
 import { analyzeEvidence } from '../services/geminiService';
 
 interface EvidenceFormProps {
   criterionType: CriterionType;
   isHard: boolean;
-  subCriterionName: string; // Thêm prop này
+  subCriterionName: string;
+  selectedSubId?: string; // ID thật từ backend
+  hasDecisionNumber?: boolean;
+  minQty?: number;
   onAdd: (evidence: Evidence) => void;
   onCancel: () => void;
+  availableSubCriteriaProps?: any[]; // Thêm prop nếu cần chọn từ list
 }
 
-const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subCriterionName, onAdd, onCancel }) => {
+const EvidenceForm: React.FC<EvidenceFormProps> = ({ 
+  criterionType, isHard, subCriterionName, selectedSubId, 
+  hasDecisionNumber, minQty, onAdd, onCancel,
+  availableSubCriteriaProps = []
+}) => {
   const [name, setName] = useState('');
   const [subCriterionId, setSubCriterionId] = useState('');
   const [level, setLevel] = useState<EvidenceLevel>(EvidenceLevel.KHOA);
-  const [type, setType] = useState<EvidenceType>(EvidenceType.NO_DECISION);
+  const [type, setType] = useState<EvidenceType>(hasDecisionNumber ? EvidenceType.WITH_DECISION : EvidenceType.NO_DECISION);
   const [decisionNumber, setDecisionNumber] = useState('');
   const [qty, setQty] = useState<number | ''>('');
   const [file, setFile] = useState<File | null>(null);
@@ -25,27 +32,25 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const [analysisResult, setAnalysisResult] = useState<{ isSuitable: boolean; suggestedScore: number; reasoning: string } | null>(null);
 
   const availableSubCriteria = useMemo(() => {
-    const profileBasedCriteria = [
-      'eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 
-      'aca_hard_1', 'aca_point_7', 
-      'phy_hard_1',
-      'int_hard_1', 'int_hard_2'
-    ];
-    return SUB_CRITERIA[criterionType].filter(sc => sc.isHard === isHard && !profileBasedCriteria.includes(sc.id));
-  }, [criterionType, isHard]);
+    // Nếu có truyền list từ Backend vào thì dùng, không thì chỉ dùng selectedSubId
+    if (availableSubCriteriaProps.length > 0) return availableSubCriteriaProps;
+    return [];
+  }, [availableSubCriteriaProps]);
 
   useEffect(() => {
-    // Nếu có tiêu chí cụ thể được chọn từ bên ngoài, tìm ID của nó
-    const matched = availableSubCriteria.find(sc => sc.description === subCriterionName);
-    if (matched) {
-      setSubCriterionId(matched.id);
-    } else if (availableSubCriteria.length > 0) {
-      setSubCriterionId(availableSubCriteria[0].id);
+    if (selectedSubId) {
+      setSubCriterionId(selectedSubId);
     }
-  }, [availableSubCriteria, subCriterionName]);
+  }, [selectedSubId]);
 
-  const selectedSubCriterion = useMemo(() => availableSubCriteria.find(sc => sc.id === subCriterionId), [availableSubCriteria, subCriterionId]);
-  const showQtyInput = selectedSubCriterion?.minQty !== undefined;
+  const selectedSubCriterion = useMemo(() => {
+    if (selectedSubId) {
+      return { id: selectedSubId, description: subCriterionName, isHard, minQty };
+    }
+    return null;
+  }, [selectedSubId, subCriterionName, isHard, minQty]);
+
+  const showQtyInput = selectedSubCriterion?.minQty !== undefined || minQty !== undefined;
 
   const showDecisionInput = type !== EvidenceType.NO_DECISION;
 
@@ -171,7 +176,9 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
               onChange={(e) => setType(e.target.value as EvidenceType)} 
               className="w-full px-5 py-4 border-2 border-gray-100 font-bold bg-white text-xs outline-none text-gray-900 shadow-sm"
             >
-              {Object.values(EvidenceType).map(t => <option key={t} value={t}>{t}</option>)}
+              {Object.values(EvidenceType)
+                .filter(t => !hasDecisionNumber || t !== EvidenceType.NO_DECISION)
+                .map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>

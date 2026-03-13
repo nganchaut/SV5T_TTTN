@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CriterionType, Evidence, StudentProfile, EvidenceLevel, EvidenceType, FieldVerification } from '../types';
-import { SUB_CRITERIA, FACES_OF_THE_YEAR as INITIAL_FACES } from '../constants';
+import { FACES_OF_THE_YEAR as INITIAL_FACES } from '../constants';
 import EvidenceForm from '../components/EvidenceForm';
 
 const POINT_MATRIX: Record<EvidenceLevel, Record<EvidenceType, number>> = {
@@ -28,39 +28,46 @@ const STEP_LABELS: Record<string, string> = {
   [CriterionType.PHYSICAL]: 'MC Thể lực',
   [CriterionType.VOLUNTEER]: 'MC Tình nguyện',
   [CriterionType.INTEGRATION]: 'MC Hội nhập',
-  'SUBMIT': 'Gửi hồ sơ',
 };
 
-export const checkHardMet = (cat: CriterionType, student: StudentProfile) => {
+export const checkHardMet = (cat: CriterionType, student: StudentProfile, allCriteria: any[] = []) => {
   const evs = student.evidences[cat] || [];
   const approvedEvs = evs.filter(e => e.status === 'Approved' || e.status === 'Pending');
 
+  const nhom = allCriteria?.find(n => n.TenNhom === cat);
+  const backendSubs = (nhom?.tieu_chi || []).map((s: any) => ({
+    id: String(s.id),
+    code: s.MaTieuChi,
+    isHard: s.is_tieu_chi_cung,
+  }));
+  
+  const currentSubs = backendSubs.length > 0 ? backendSubs : [];
+  const profileBasedCodes = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
+  const validHardSubIds = currentSubs.filter(sub => sub.isHard && !profileBasedCodes.includes((sub as any).code || sub.id)).map(s => s.id);
+
+  const uploadedValidHardEvs = approvedEvs.filter(e => validHardSubIds.includes(e.subCriterionId));
+  const matchedHardSubIds = new Set(uploadedValidHardEvs.map(e => e.subCriterionId));
+  
+  // Yêu cầu nộp TẤT CẢ các minh chứng cứng ĐƯỢC ADMIN CẤU HÌNH. 
+  // Nếu Admin KHÔNG cấu hình tiêu chí cứng tự nộp nào (length === 0), thì mặc định là True (để pass qua dựa vào điểm).
+  // Nếu Admin CÓ cấu hình, thì phải nộp ĐỦ mới được True.
+  const hasAllRequiredHardEvs = validHardSubIds.length === 0 || validHardSubIds.every(id => matchedHardSubIds.has(id));
+
+  // Biến mở rộng: Có nộp ít nhất 1 MC Cứng mở rộng nào không (dùng cho Thể lực, Hội nhập: Hoặc điểm, Hoặc MC)
+  const hasUploadedSomeHardEvs = validHardSubIds.length > 0 && validHardSubIds.every(id => matchedHardSubIds.has(id));
+
   switch (cat) {
     case CriterionType.ETHICS:
-      return student.trainingPoints >= 80 && student.noViolation;
+      return student.trainingPoints >= 70 && student.noViolation && hasAllRequiredHardEvs;
     case CriterionType.ACADEMIC:
-      return student.gpa >= 3.2 && student.gpa <= 4.0;
+      return student.gpa >= 2.5 && student.gpa <= 4.0 && hasAllRequiredHardEvs;
     case CriterionType.PHYSICAL:
-      return student.peScore >= 7.0 || approvedEvs.some(e => e.subCriterionId === 'phy_hard_2');
-    case CriterionType.VOLUNTEER: {
-      const hasMainCamp = approvedEvs.some(e => ['vol_hard_1', 'vol_hard_3'].includes(e.subCriterionId));
-      
-      const bloodDonationQty = approvedEvs
-        .filter(e => e.subCriterionId === 'vol_hard_4')
-        .reduce((sum, e) => sum + (e.qty || 1), 0);
-      const hasBlood = bloodDonationQty >= 2;
-      
-      const dayCount = approvedEvs
-        .filter(e => e.subCriterionId === 'vol_hard_2')
-        .reduce((sum, e) => sum + (e.qty || 1), 0);
-        
-      return hasMainCamp || dayCount >= 3 || hasBlood;
-    }
+      return (student.peScore >= 7.0 || student.peScore === 10) && hasAllRequiredHardEvs;
+    case CriterionType.VOLUNTEER:
+      return validHardSubIds.length > 0 ? hasUploadedSomeHardEvs : false;
     case CriterionType.INTEGRATION:
-      return (
-        (((['B1', 'B2'].includes(student.englishLevel) || student.englishGpa >= 3.0) && (student.englishGpa <= 4.0)) ||
-          approvedEvs.some(e => ['int_hard_3', 'int_hard_4', 'int_hard_5'].includes(e.subCriterionId)))
-      );
+      const profileMet = (['B1', 'B2', 'B3', 'C1', 'C2'].includes(student.englishLevel) || student.englishGpa >= 2.0);
+      return profileMet && hasAllRequiredHardEvs;
     default:
       return false;
   }
@@ -76,9 +83,17 @@ const StudentDashboard: React.FC<{
   onSubmit: () => void;
   onResubmit: () => void;
   onUnsubmit: () => void;
-}> = ({ student, addEvidence, removeEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit }) => {
+  allCriteria?: any[];
+}> = ({ student, addEvidence, removeEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit, allCriteria }) => {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string } | null>(null);
+  const [addingTo, setAddingTo] = useState<{ 
+    type: CriterionType, 
+    isHard: boolean, 
+    subName: string, 
+    subId: string,
+    hasDecisionNumber?: boolean,
+    minQty?: number
+  } | null>(null);
 
   // Local state for form inputs to prevent typing glitches
   const [localData, setLocalData] = useState({
@@ -91,16 +106,31 @@ const StudentDashboard: React.FC<{
     isPartyMember: student.isPartyMember || false,
   });
 
-  // Sync localData when student prop changes from outside (e.g., initial load)
+  // Sync localData when student prop changes from outside (e.g., initial load or save complete)
   React.useEffect(() => {
-    setLocalData({
-      trainingPoints: student.trainingPoints || 0,
-      gpa: student.gpa || 0,
-      peScore: student.peScore || 0,
-      englishGpa: student.englishGpa || 0,
-      englishLevel: student.englishLevel || 'None',
-      noViolation: student.noViolation || false,
-      isPartyMember: student.isPartyMember || false,
+    // Check if we are focusing an input to avoid jumping
+    const focusedEl = document.activeElement;
+    const isEditing = focusedEl instanceof HTMLInputElement && (focusedEl.type === 'number' || focusedEl.type === 'text');
+    
+    setLocalData(prev => {
+      const newData = {
+        trainingPoints: student.trainingPoints || 0,
+        gpa: student.gpa || 0,
+        peScore: student.peScore || 0,
+        englishGpa: student.englishGpa || 0,
+        englishLevel: student.englishLevel || 'None',
+        noViolation: student.noViolation || false,
+        isPartyMember: student.isPartyMember || false,
+      };
+      
+      if (JSON.stringify(prev) === JSON.stringify(newData)) return prev;
+      
+      // If editing, merge carefully: keep the field being edited
+      if (isEditing) {
+        return { ...newData, ...prev }; 
+      }
+
+      return newData;
     });
   }, [student.trainingPoints, student.gpa, student.peScore, student.englishGpa, student.englishLevel, student.noViolation, student.isPartyMember]);
 
@@ -180,7 +210,7 @@ const StudentDashboard: React.FC<{
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             { label: 'Tổng điểm tích lũy', val: student.totalScore, icon: 'fa-star', color: 'text-orange-500' },
-            { label: 'Tiêu chí đạt', val: Object.values(CriterionType).filter(c => checkHardMet(c as CriterionType, student)).length + '/5', icon: 'fa-check-circle', color: 'text-green-500' },
+            { label: 'Tiêu chí đạt', val: Object.values(CriterionType).filter(c => checkHardMet(c as CriterionType, student, allCriteria)).length + '/5', icon: 'fa-check-circle', color: 'text-green-500' },
             { label: 'Minh chứng đính kèm', val: Object.values(student.evidences).flat().length, icon: 'fa-file-alt', color: 'text-blue-500' },
           ].map((item, i) => (
             <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
@@ -360,11 +390,11 @@ const StudentDashboard: React.FC<{
   };
 
   const catStatus = {
-    [CriterionType.ETHICS]: checkHardMet(CriterionType.ETHICS, currentStudentDataForCheck),
-    [CriterionType.ACADEMIC]: checkHardMet(CriterionType.ACADEMIC, currentStudentDataForCheck),
-    [CriterionType.PHYSICAL]: checkHardMet(CriterionType.PHYSICAL, currentStudentDataForCheck),
-    [CriterionType.VOLUNTEER]: checkHardMet(CriterionType.VOLUNTEER, currentStudentDataForCheck),
-    [CriterionType.INTEGRATION]: checkHardMet(CriterionType.INTEGRATION, currentStudentDataForCheck),
+    [CriterionType.ETHICS]: checkHardMet(CriterionType.ETHICS, currentStudentDataForCheck, allCriteria || []),
+    [CriterionType.ACADEMIC]: checkHardMet(CriterionType.ACADEMIC, currentStudentDataForCheck, allCriteria || []),
+    [CriterionType.PHYSICAL]: checkHardMet(CriterionType.PHYSICAL, currentStudentDataForCheck, allCriteria || []),
+    [CriterionType.VOLUNTEER]: checkHardMet(CriterionType.VOLUNTEER, currentStudentDataForCheck, allCriteria || []),
+    [CriterionType.INTEGRATION]: checkHardMet(CriterionType.INTEGRATION, currentStudentDataForCheck, allCriteria || []),
   };
 
   const allHardMet = Object.values(catStatus).filter(v => v).length === 5;
@@ -570,9 +600,22 @@ const StudentDashboard: React.FC<{
   // ====== PHASE 2: TRANG MINH CHỨNG BỔ SUNG ======
   const renderEvidencePage = (cat: CriterionType) => {
     const isHardMet = catStatus[cat];
-    const profileBasedCriteria = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
-    const hardSubs = SUB_CRITERIA[cat].filter(sub => sub.isHard && !profileBasedCriteria.includes(sub.id));
-    const softSubs = SUB_CRITERIA[cat].filter(sub => !sub.isHard && !profileBasedCriteria.includes(sub.id));
+    const profileBasedCodes = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
+    
+    // Get criteria for this category from backend props
+    const nhom = allCriteria?.find(n => n.TenNhom === cat);
+    const backendSubs = (nhom?.tieu_chi || []).map((s: any) => ({
+      id: String(s.id),
+      code: s.MaTieuChi,
+      description: s.MoTa || s.TenTieuChi || '',
+      isHard: s.is_tieu_chi_cung,
+      hasDecisionNumber: s.CoSoQuyetDinh,
+      minQty: s.SoLuongToiThieu
+    }));
+
+    const currentSubs = backendSubs.length > 0 ? backendSubs : [];
+    const hardSubs = currentSubs.filter(sub => sub.isHard && !profileBasedCodes.includes((sub as any).code || sub.id));
+    const softSubs = currentSubs.filter(sub => !sub.isHard && !profileBasedCodes.includes((sub as any).code || sub.id));
 
     const catIcons: Record<string, string> = {
       [CriterionType.ETHICS]: 'fa-heart',
@@ -616,7 +659,17 @@ const StudentDashboard: React.FC<{
                       <p className="text-xs font-bold text-gray-800 leading-snug">{sub.description}</p>
                     </div>
                     {!isLocked && (
-                      <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.description })} className="px-4 py-2 bg-blue-50 text-blue-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-blue-100 transition-all whitespace-nowrap">
+                      <button 
+                        onClick={() => setAddingTo({ 
+                          type: cat, 
+                          isHard: true, 
+                          subName: sub.description, 
+                          subId: sub.id, 
+                          hasDecisionNumber: sub.hasDecisionNumber,
+                          minQty: sub.minQty
+                        })} 
+                        className="px-4 py-2 bg-blue-50 text-blue-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-blue-100 transition-all whitespace-nowrap"
+                      >
                         <i className="fas fa-upload mr-1.5"></i>Tải lên
                       </button>
                     )}
@@ -665,7 +718,7 @@ const StudentDashboard: React.FC<{
                       <p className="text-xs font-bold text-gray-800 leading-snug">{sub.description}</p>
                     </div>
                     {!isLocked && (
-                      <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.description })} className="px-4 py-2 bg-orange-50 text-orange-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-100 transition-all whitespace-nowrap">
+                      <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.description, subId: sub.id })} className="px-4 py-2 bg-orange-50 text-orange-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-100 transition-all whitespace-nowrap">
                         <i className="fas fa-upload mr-1.5"></i>Tải lên
                       </button>
                     )}
@@ -785,7 +838,19 @@ const StudentDashboard: React.FC<{
       {/* Evidence Upload Modal */}
       {addingTo && !isLocked && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-blue-950/90 backdrop-blur-sm p-4 animate-fade-in">
-          <EvidenceForm criterionType={addingTo.type} isHard={addingTo.isHard} subCriterionName={addingTo.subName} onAdd={(ev) => { addEvidence(addingTo.type, { ...ev, points: POINT_MATRIX[ev.level][ev.type] }); setAddingTo(null); }} onCancel={() => setAddingTo(null)} />
+          <EvidenceForm 
+            criterionType={addingTo.type} 
+            isHard={addingTo.isHard} 
+            subCriterionName={addingTo.subName} 
+            selectedSubId={addingTo.subId}
+            hasDecisionNumber={addingTo.hasDecisionNumber}
+            minQty={addingTo.minQty}
+            onAdd={(ev) => { 
+              addEvidence(addingTo.type, { ...ev, subCriterionId: addingTo.subId, points: POINT_MATRIX[ev.level][ev.type] }); 
+              setAddingTo(null); 
+            }} 
+            onCancel={() => setAddingTo(null)} 
+          />
         </div>
       )}
     </div>

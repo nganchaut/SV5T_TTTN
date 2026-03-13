@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification } from '../types';
-import { SUB_CRITERIA } from '../constants';
 import { adminService } from '../services/adminService';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useUI } from '../context/UIContext';
 
 const AdminDashboard: React.FC<{
   students: StudentProfile[],
@@ -14,11 +14,13 @@ const AdminDashboard: React.FC<{
   faces: FeaturedFace[],
   onAddFace: (face: Omit<FeaturedFace, 'id'>) => void,
   onUpdateFace: (id: string, face: Partial<FeaturedFace>) => void,
-  onDeleteFace: (id: string) => void
-}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace }) => {
+  onDeleteFace: (id: string) => void,
+  allCriteriaProps?: any[]
+}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace, allCriteriaProps }) => {
   const navigate = useNavigate();
   const { activeTab: urlTab } = useParams<{ activeTab: string }>();
   const activeTab = urlTab || 'profiles';
+  const { toast, confirm, prompt } = useUI();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -38,20 +40,60 @@ const AdminDashboard: React.FC<{
   // State for CRUD
   const LEVELS = ['Cấp Khoa/CLB', 'Cấp Trường/Phường/Xã', 'Cấp ĐHĐN', 'Cấp Tỉnh/Thành phố', 'Cấp Trung ương'];
   const LEVEL_KEYS = ['khoa', 'truong', 'dhdn', 'tinh', 'tw'];
-  type CriterionItem = { id: string; description: string; isHard: boolean; points?: number; levelPoints: Record<string, number>; hasDecisionNumber: boolean };
-  const [managedCriteria, setManagedCriteria] = useState(() => {
+  type CriterionItem = { id: string; description: string; isHard: boolean; points?: number; levelPoints: Record<string, number>; hasDecisionNumber: boolean; nhomId?: number };
+
+  const mapPropsToCriteria = (props?: any[]) => {
     const init: Record<string, CriterionItem[]> = {};
-    Object.entries(SUB_CRITERIA).forEach(([cat, subs]) => {
-      init[cat] = subs.map(s => ({
-        ...s,
-        levelPoints: { khoa: 0.1, truong: 0.2, dhdn: 0.3, tinh: 0.4, tw: 0.5 },
-        hasDecisionNumber: false
-      }));
+    if (!props || props.length === 0) return init;
+
+    props.forEach((nhom: any) => {
+      if (!nhom) return;
+      const key = nhom.TenNhom || nhom.name || "Nhóm khác";
+      init[key] = (nhom.tieu_chi || nhom.subs || []).map((s: any) => {
+        if (!s) return null;
+        const lp: Record<string, number> = { khoa: 0.1, truong: 0.2, dhdn: 0.3, tinh: 0.4, tw: 0.5 };
+        (s.diem_cap_do || []).forEach((d: any) => {
+          if (!d) return;
+          const capText = String(d.CapDo);
+          if (capText.includes('Khoa')) lp.khoa = d.Diem;
+          else if (capText.includes('Trường')) lp.truong = d.Diem;
+          else if (capText.includes('ĐHĐN')) lp.dhdn = d.Diem;
+          else if (capText.includes('Tỉnh')) lp.tinh = d.Diem;
+          else if (capText.includes('Trung ương')) lp.tw = d.Diem;
+        });
+        return {
+          id: String(s.id),
+          code: s.MaTieuChi || '',
+          description: s.MoTa || s.TenTieuChi || s.description || '',
+          isHard: s.is_tieu_chi_cung || (s.LoaiTieuChi === 'Cung') || s.isHard || false,
+          levelPoints: lp,
+          hasDecisionNumber: s.CoSoQuyetDinh || s.hasDecisionNumber || false,
+          nhomId: nhom.id
+        };
+      }).filter(Boolean) as CriterionItem[];
     });
+
     return init;
+  };
+
+  const [managedCriteria, setManagedCriteria] = useState<Record<string, CriterionItem[]>>(() => {
+    const initial = mapPropsToCriteria(allCriteriaProps);
+    console.log("ManagedCriteria Initialized:", initial);
+    return initial;
   });
   const [managedUsers, setManagedUsers] = useState<any[]>([]);
   const [managedPosts, setManagedPosts] = useState<any[]>([]);
+  const [userForm, setUserForm] = useState<{ mode: 'add' | 'edit', id?: string, username: string, password?: string, role: string } | null>(null);
+
+  // Import mock mapper for initialization
+  // (We'll make sure it's available in this scope)
+
+  // Sync criteria from props (backend)
+  useEffect(() => {
+    if (allCriteriaProps && allCriteriaProps.length > 0) {
+      setManagedCriteria(mapPropsToCriteria(allCriteriaProps));
+    }
+  }, [allCriteriaProps]);
 
   useEffect(() => {
     if (activeTab === 'posts') {
@@ -61,28 +103,55 @@ const AdminDashboard: React.FC<{
     }
   }, [activeTab]);
 
-  const handleAction = (status: StudentProfile['status']) => {
+  const handleAction = async (status: StudentProfile['status']) => {
     const actionTxt = status === 'Approved' ? 'CÔNG NHẬN DANH HIỆU' : status === 'Processing' ? 'GỬI YÊU CẦU GIẢI TRÌNH' : 'TỪ CHỐI HỒ SƠ';
-    if (!window.confirm(`Xác nhận thực hiện hành động: ${actionTxt}?`)) return;
+    const ok = await confirm({ title: 'Xác nhận hành động', message: `Xác nhận thực hiện: ${actionTxt}?`, variant: status === 'Rejected' ? 'danger' : 'default' });
+    if (!ok) return;
     let fb = '';
-    if (status === 'Rejected') { fb = window.prompt('Lý do hồ sơ KHÔNG ĐẠT:') || ''; if (!fb) return; }
-    else if (status === 'Processing') { fb = window.prompt(`Nhập lời nhắn giải trình gửi đến SV ${selectedStudent.fullName}:`) || 'Vui lòng kiểm tra và giải trình các mục Admin đã đánh dấu.'; }
+    if (status === 'Rejected') {
+      const reason = await prompt({ title: 'Lý do từ chối', message: 'Nhập lý do hồ sơ KHÔNG ĐẠT:', placeholder: 'VD: Điểm GPA chưa đạt yêu cầu...', variant: 'danger' });
+      if (!reason) return;
+      fb = reason;
+    } else if (status === 'Processing') {
+      const msg = await prompt({ title: 'Yêu cầu giải trình', message: `Nhập lời nhắn gửi đến SV ${selectedStudent.fullName}:`, placeholder: 'VD: Vui lòng bổ sung minh chứng...' });
+      fb = msg || 'Vui lòng kiểm tra và giải trình các mục Admin đã đánh dấu.';
+    }
     onUpdateStatus(status, fb);
-    if (status === 'Processing') window.alert(`✅ Đã gửi yêu cầu giải trình đến sinh viên ${selectedStudent.fullName} thành công!`);
-    else if (status === 'Approved') window.alert(`🌟 Đã công nhận danh hiệu cho SV ${selectedStudent.fullName}.`);
+    if (status === 'Processing') toast(`✅ Đã gửi yêu cầu giải trình đến ${selectedStudent.fullName}`);
+    else if (status === 'Approved') toast(`🌟 Đã công nhận danh hiệu cho SV ${selectedStudent.fullName}`);
     setIsReviewing(false);
   };
 
-  const handleEvidenceAction = (cat: CriterionType, id: string, action: 'Approved' | 'Rejected' | 'NeedsExplanation') => {
+  const handleEvidenceAction = async (cat: CriterionType, id: string, action: 'Approved' | 'Rejected' | 'NeedsExplanation') => {
     let feedback = '';
-    if (action === 'Rejected' || action === 'NeedsExplanation') { feedback = window.prompt(action === 'Rejected' ? 'Lý do từ chối:' : 'Nội dung cần giải trình:') || ''; if (!feedback && action === 'Rejected') return; }
+    if (action === 'Rejected' || action === 'NeedsExplanation') {
+      const msg = await prompt({
+        title: action === 'Rejected' ? 'Từ chối minh chứng' : 'Yêu cầu giải trình',
+        message: action === 'Rejected' ? 'Nhập lý do từ chối minh chứng:' : 'Nhập nội dung cần sinh viên giải trình:',
+        placeholder: action === 'Rejected' ? 'VD: File không hợp lệ...' : 'VD: Vui lòng bổ sung thêm...',
+        variant: action === 'Rejected' ? 'danger' : 'default',
+      });
+      if (msg === null && action === 'Rejected') return;
+      feedback = msg || '';
+    }
     onUpdateEvidenceStatus(cat, id, action, feedback);
+    toast(action === 'Approved' ? '✅ Đã duyệt minh chứng' : action === 'Rejected' ? '🚫 Đã từ chối minh chứng' : '📝 Đã gửi yêu cầu giải trình');
   };
 
-  const handleManualDataVerify = (action: 'Approved' | 'Rejected' | 'NeedsExplanation', fieldKey: keyof StudentProfile['verifications'], context: string) => {
+  const handleManualDataVerify = async (action: 'Approved' | 'Rejected' | 'NeedsExplanation', fieldKey: keyof StudentProfile['verifications'], context: string) => {
     let feedback = '';
-    if (action === 'Rejected' || action === 'NeedsExplanation') { feedback = window.prompt(`Lý do phản hồi cho [${context}]:`) || ''; if (!feedback && action === 'Rejected') return; }
+    if (action === 'Rejected' || action === 'NeedsExplanation') {
+      const msg = await prompt({
+        title: `Phản hồi: ${context}`,
+        message: `Nhập lý do phản hồi cho [${context}]:`,
+        placeholder: 'Nhập nội dung...',
+        variant: action === 'Rejected' ? 'danger' : 'default',
+      });
+      if (msg === null && action === 'Rejected') return;
+      feedback = msg || '';
+    }
     onUpdateFieldVerification(fieldKey, action, feedback);
+    toast(action === 'Approved' ? `✅ Đã xác minh [${context}]` : `📝 Đã gửi phản hồi [${context}]`);
   };
 
   // Featured Faces Management
@@ -109,10 +178,9 @@ const AdminDashboard: React.FC<{
     setFaceForm(null);
   };
 
-  const handleDeleteFace = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa gương mặt này?')) {
-      onDeleteFace(id);
-    }
+  const handleDeleteFace = async (id: string) => {
+    const ok = await confirm({ title: 'Xóa gương mặt', message: 'Bạn có chắc chắn muốn xóa gương mặt tiêu biểu này?', variant: 'danger', confirmText: 'Xóa' });
+    if (ok) onDeleteFace(id);
   };
 
   const openAddFace = () => setFaceForm({ mode: 'add', name: '', achievement: '', content: '', image: '' });
@@ -394,55 +462,101 @@ const AdminDashboard: React.FC<{
     if (!sub) return;
     setCriteriaForm({ mode: 'edit', cat, id, description: sub.description, isHard: sub.isHard, hasDecisionNumber: sub.hasDecisionNumber, levelPoints: { ...sub.levelPoints } });
   };
-  const saveCriteriaForm = () => {
+  const saveCriteriaForm = async () => {
     if (!criteriaForm || !criteriaForm.description.trim()) return;
-    if (criteriaForm.mode === 'add') {
-      setManagedCriteria(prev => ({
-        ...prev, [criteriaForm.cat]: [...(prev[criteriaForm.cat] || []), {
-          id: `new_${Date.now()}`, description: criteriaForm.description, isHard: criteriaForm.isHard,
-          levelPoints: criteriaForm.levelPoints, hasDecisionNumber: criteriaForm.hasDecisionNumber
-        }]
-      }));
-    } else {
-      setManagedCriteria(prev => ({ ...prev, [criteriaForm.cat]: prev[criteriaForm.cat].map(s => s.id === criteriaForm.id ? { ...s, description: criteriaForm.description, isHard: criteriaForm.isHard, hasDecisionNumber: criteriaForm.hasDecisionNumber, levelPoints: criteriaForm.levelPoints } : s) }));
+    try {
+      if (criteriaForm.mode === 'add') {
+        const nhom = allCriteriaProps?.find(n => n.TenNhom === criteriaForm.cat);
+        if (!nhom) {
+          await confirm({ title: 'Chưa thể thêm tiêu chí', message: `Nhóm "${criteriaForm.cat}" chưa tồn tại trên Backend. Vui lòng nhấn nút "Đồng bộ tiêu chí mẫu" để khởi tạo trước.`, confirmText: 'Đã hiểu', cancelText: undefined as any });
+          return;
+        }
+        await adminService.addCriterion({ ...criteriaForm, nhomId: nhom.id });
+      } else if (criteriaForm.id) {
+        await adminService.updateCriterion(criteriaForm.id, criteriaForm);
+      }
+      toast('✅ Lưu tiêu chí thành công! Đang tải lại dữ liệu...');
+      window.location.reload();
+    } catch (e) {
+      toast('❌ Lỗi khi lưu tiêu chí!', 'error');
     }
     setCriteriaForm(null);
   };
-  const handleDeleteCriterion = (cat: string, id: string) => {
-    if (!window.confirm('Xác nhận xóa tiêu chí này?')) return;
-    setManagedCriteria(prev => ({ ...prev, [cat]: prev[cat].filter(s => s.id !== id) }));
+  const handleDeleteCriterion = async (cat: string, id: string) => {
+    const ok = await confirm({ title: 'Xóa tiêu chí', message: 'Xác nhận xóa tiêu chí này? Hành động không thể hoàn tác.', variant: 'danger', confirmText: 'Xóa' });
+    if (!ok) return;
+    try {
+      await adminService.deleteCriterion(id);
+      setManagedCriteria(prev => ({ ...prev, [cat]: prev[cat].filter(s => s.id !== id) }));
+      toast('✅ Đã xóa tiêu chí!');
+    } catch (e) { toast('❌ Xóa thất bại!', 'error'); }
   };
-  const handleAddUser = () => {
-    const name = window.prompt('Họ tên người dùng:'); if (!name) return;
-    const email = window.prompt('Email:'); if (!email) return;
-    const role = window.prompt('Vai trò (Admin / Thư ký / Thẩm định viên):') || 'Thẩm định viên';
-    setManagedUsers(prev => [...prev, { id: `u_${Date.now()}`, name, email, role }]);
-    window.alert('✅ Đã thêm người dùng!');
+  const handleAddUser = () => setUserForm({ mode: 'add', username: '', password: '123456', role: 'SinhVien' });
+  
+  const handleSaveUser = async () => {
+    if (!userForm || !userForm.username) return;
+    try {
+      await adminService.addUser({ username: userForm.username, password: userForm.password, role: userForm.role });
+      const updatedUsers = await adminService.getUsers();
+      setManagedUsers(updatedUsers);
+      toast('✅ Đã thêm người dùng thành công!');
+      setUserForm(null);
+    } catch (e) { toast('❌ Thêm người dùng thất bại!', 'error'); }
   };
-  const handleDeleteUser = (id: string) => {
-    if (!window.confirm('Xác nhận xóa người dùng này?')) return;
-    setManagedUsers(prev => prev.filter(u => u.id !== id));
+
+  const handleDeleteUser = async (id: string) => {
+    const ok = await confirm({ title: 'Vô hiệu hóa tài khoản', message: 'Xác nhận vô hiệu hóa người dùng này? Họ sẽ không thể đăng nhập.', variant: 'danger', confirmText: 'Vô hiệu hóa' });
+    if (!ok) return;
+    try {
+      await adminService.deleteUser(id);
+      const updatedUsers = await adminService.getUsers();
+      setManagedUsers(updatedUsers);
+      toast('✅ Đã vô hiệu hóa tài khoản!');
+    } catch (e) { toast('❌ Thất bại!', 'error'); }
   };
+
+  const handleInitCriteria = async () => {
+    const ok = await confirm({ title: 'Đồng bộ tiêu chí mẫu', message: 'Hệ thống sẽ đồng bộ 5 nhóm tiêu chí chuẩn lên Backend. Các nhóm đã tồn tại sẽ được giữ nguyên. Tiếp tục?', confirmText: 'Đồng bộ ngay' });
+    if (!ok) return;
+    try {
+      const defaultGroups = [
+        { name: CriterionType.ETHICS, order: 1 },
+        { name: CriterionType.ACADEMIC, order: 2 },
+        { name: CriterionType.PHYSICAL, order: 3 },
+        { name: CriterionType.VOLUNTEER, order: 4 },
+        { name: CriterionType.INTEGRATION, order: 5 },
+      ];
+      for (const group of defaultGroups) {
+        await adminService.addCategory(group.name, group.order);
+      }
+      toast('✅ Đồng bộ tiêu chí thành công! Đang tải lại...');
+      window.location.reload();
+    } catch (e: any) {
+      toast(`❌ Lỗi: ${e.response?.data?.detail || e.message}`, 'error');
+    }
+  };
+
   const handleAddPost = async () => {
-    const title = window.prompt('Tiêu đề bài viết:'); if (!title) return;
+    const title = await prompt({ title: 'Thêm bài viết mới', message: 'Nhập tiêu đề bài viết:', placeholder: 'VD: Thông báo xét duyệt SV5T năm học 2024-2025' });
+    if (!title) return;
     try {
       const newPost = await adminService.addPost({ title, status: 'draft' });
       setManagedPosts(prev => [newPost, ...prev]);
-      window.alert('✅ Đã thêm bài viết!');
+      toast('✅ Đã thêm bài viết!');
     } catch (e) {
-      alert("Thêm thất bại!");
+      toast('❌ Thêm thất bại!', 'error');
     }
   };
   const handleEditPost = async (id: string, currentStatus: string) => {
     const post = managedPosts.find(p => p.id === id); if (!post) return;
-    const title = window.prompt('Chỉnh sửa tiêu đề:', post.title); if (!title) return;
+    const title = await prompt({ title: 'Chỉnh sửa bài viết', message: 'Nhập tiêu đề mới:', placeholder: post.title, defaultValue: post.title });
+    if (!title) return;
     try {
-      // Toggle string 'draft' / 'published' if user wants, but here we just update title
       const updated = await adminService.updatePost(id, { title, status: currentStatus });
       setManagedPosts(prev => prev.map(p => p.id === id ? updated : p));
-      window.alert('✅ Đã cập nhật bài viết!');
+      toast('✅ Đã cập nhật bài viết!');
     } catch (e) {
-      alert("Cập nhật thất bại!");
+      toast('❌ Cập nhật thất bại!', 'error');
     }
   };
   const handleTogglePostStatus = async (id: string, currentStatus: string) => {
@@ -455,11 +569,13 @@ const AdminDashboard: React.FC<{
     }
   };
   const handleDeletePost = async (id: string) => {
-    if (!window.confirm('Xác nhận xóa bài viết này?')) return;
+    const ok = await confirm({ title: 'Xóa bài viết', message: 'Xác nhận xóa bài viết này?', variant: 'danger', confirmText: 'Xóa' });
+    if (!ok) return;
     try {
       await adminService.deletePost(id);
       setManagedPosts(prev => prev.filter(p => p.id !== id));
-    } catch(e) {}
+      toast('🗑 Đã xóa bài viết!');
+    } catch(e) { toast('❌ Xóa thất bại!', 'error'); }
   };
 
   const renderCriteriaInlineForm = () => {
@@ -502,6 +618,11 @@ const AdminDashboard: React.FC<{
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-black text-blue-900 uppercase">Danh sách tiêu chí</h2>
+        {(!allCriteriaProps || allCriteriaProps.length === 0) && (
+          <button onClick={handleInitCriteria} className="px-5 py-2.5 bg-orange-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-blue-900 transition-all shadow-lg animate-pulse">
+            <i className="fas fa-magic mr-1.5"></i>Khởi tạo hệ thống (Đồng bộ tiêu chí mẫu lên Backend)
+          </button>
+        )}
       </div>
       {(Object.entries(managedCriteria) as [string, CriterionItem[]][]).map(([cat, subs]) => (
         <div key={cat} className="bg-white border rounded-lg overflow-hidden">
@@ -526,6 +647,7 @@ const AdminDashboard: React.FC<{
                   <div className="px-6 py-4 hover:bg-gray-50/50 transition-colors">
                     <div className="flex items-center justify-between gap-4 mb-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className={`text-[7px] font-black uppercase px-2 py-0.5 text-white rounded flex-shrink-0 ${(sub as any).code ? 'bg-indigo-600' : 'bg-pink-500'}`}>{(sub as any).code ? 'Hệ thống' : 'Thủ công'}</span>
                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 text-white rounded flex-shrink-0 ${sub.isHard ? 'bg-blue-600' : 'bg-orange-500'}`}>{sub.isHard ? 'Cứng' : 'Cộng'}</span>
                         <span className="text-xs font-medium text-gray-700">{sub.description}</span>
                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded flex-shrink-0 ${sub.hasDecisionNumber ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>{sub.hasDecisionNumber ? 'Có Sqđ' : 'Không Sqđ'}</span>
@@ -562,6 +684,39 @@ const AdminDashboard: React.FC<{
           <i className="fas fa-user-plus mr-1.5"></i>Thêm người dùng
         </button>
       </div>
+
+      {userForm && (
+        <div className="bg-white border-2 border-blue-900/10 rounded-xl p-8 shadow-xl animate-fade-in mb-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center"><i className="fas fa-user-plus"></i></div>
+            <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">Thêm tài khoản mới</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tên đăng nhập (Mã SV)</label>
+              <input type="text" value={userForm.username} onChange={e => setUserForm({ ...userForm, username: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-bold" placeholder="20111XXX" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mật khẩu</label>
+              <input type="text" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-bold" placeholder="123456" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vai trò</label>
+              <select value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-bold uppercase tracking-widest">
+                <option value="SinhVien">Sinh Viên</option>
+                <option value="Admin">Admin</option>
+                <option value="ThuKy">Thư ký</option>
+                <option value="ThamDinh">Thẩm định</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
+            <button onClick={() => setUserForm(null)} className="px-6 py-3 border text-gray-400 font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-gray-50">Hủy bỏ</button>
+            <button onClick={handleSaveUser} disabled={!userForm.username} className="px-8 py-3 bg-blue-900 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-600 shadow-md disabled:opacity-50">Tạo tài khoản</button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border rounded-lg overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-gray-50 text-[9px] font-black text-gray-400 uppercase tracking-[0.15em] border-b">
@@ -703,9 +858,17 @@ const AdminDashboard: React.FC<{
                 <span className="text-[9px] font-bold text-blue-300/40 uppercase">Tổng điểm:</span>
                 <span className="text-orange-400 font-black text-sm">{selectedStudent.totalScore}</span>
               </div>
-              <button onClick={() => handleAction('Rejected')} className="px-4 py-2 border border-red-400/20 text-red-400 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-red-500/20 transition-all">Từ chối</button>
-              {getExplanationCount() > 0 && <button onClick={() => handleAction('Processing')} className="px-4 py-2 bg-orange-500/80 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-500 transition-all">YC Giải trình ({getExplanationCount()})</button>}
-              <button onClick={() => handleAction('Approved')} className="px-5 py-2 bg-green-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-green-600 transition-all shadow-lg">Duyệt hồ sơ</button>
+              {selectedStudent.status !== 'Draft' ? (
+                <>
+                  <button onClick={() => handleAction('Rejected')} className="px-4 py-2 border border-red-400/20 text-red-400 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-red-500/20 transition-all">Từ chối</button>
+                  {getExplanationCount() > 0 && <button onClick={() => handleAction('Processing')} className="px-4 py-2 bg-orange-500/80 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-500 transition-all">YC Giải trình ({getExplanationCount()})</button>}
+                  <button onClick={() => handleAction('Approved')} className="px-5 py-2 bg-green-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-green-600 transition-all shadow-lg">Duyệt hồ sơ</button>
+                </>
+              ) : (
+                <div className="px-4 py-2 bg-gray-500/20 text-gray-400 font-black text-[9px] uppercase tracking-widest rounded-lg border border-gray-400/20">
+                  Hồ sơ nháp (Chưa nộp)
+                </div>
+              )}
               <button onClick={() => setIsReviewing(false)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-red-500/30 text-white/40 hover:text-white flex items-center justify-center transition-all ml-2"><i className="fas fa-times text-sm"></i></button>
             </div>
           </div>
@@ -783,12 +946,16 @@ const AdminDashboard: React.FC<{
                         {fieldKey && (
                           <div className={`px-4 py-2 rounded-xl flex items-center gap-3 border-2 transition-all ${verification?.status === 'Approved' ? 'bg-green-50 border-green-200' : verification?.status === 'NeedsExplanation' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'}`}>
                             <span className="text-[9px] font-black text-gray-400 uppercase">{contextName}: <span className="text-orange-600 text-sm ml-2">{dataValue}</span></span>
-                            <div className="w-px h-4 bg-gray-200 mx-1"></div>
-                            <div className="flex gap-1">
-                              <button onClick={() => fieldKey && handleManualDataVerify('Approved', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Approved' ? 'bg-green-600 text-white' : 'hover:bg-green-100 text-green-600'}`}><i className="fas fa-check text-[10px]"></i></button>
-                              <button onClick={() => fieldKey && handleManualDataVerify('NeedsExplanation', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'hover:bg-orange-100 text-orange-500'}`}><i className="fas fa-comment-dots text-[10px]"></i></button>
-                              <button onClick={() => fieldKey && handleManualDataVerify('Rejected', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Rejected' ? 'bg-red-600 text-white' : 'hover:bg-red-100 text-red-600'}`}><i className="fas fa-times text-[10px]"></i></button>
-                            </div>
+                            {selectedStudent.status !== 'Draft' && (
+                              <>
+                                <div className="w-px h-4 bg-gray-200 mx-1"></div>
+                                <div className="flex gap-1">
+                                  <button onClick={() => fieldKey && handleManualDataVerify('Approved', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Approved' ? 'bg-green-600 text-white' : 'hover:bg-green-100 text-green-600'}`}><i className="fas fa-check text-[10px]"></i></button>
+                                  <button onClick={() => fieldKey && handleManualDataVerify('NeedsExplanation', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'hover:bg-orange-100 text-orange-500'}`}><i className="fas fa-comment-dots text-[10px]"></i></button>
+                                  <button onClick={() => fieldKey && handleManualDataVerify('Rejected', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Rejected' ? 'bg-red-600 text-white' : 'hover:bg-red-100 text-red-600'}`}><i className="fas fa-times text-[10px]"></i></button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -825,11 +992,13 @@ const AdminDashboard: React.FC<{
                                {ev.adminFeedback && <p className="text-[10px] italic text-orange-700 mt-2 font-medium">Lưu ý: {ev.adminFeedback}</p>}
                             </div>
 
-                            <div className="flex flex-col gap-1">
-                              <button onClick={() => handleEvidenceAction(cat, ev.id, 'Approved')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'Approved' ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' : 'bg-gray-50 text-green-600 hover:bg-green-100'}`} title="Đạt"><i className="fas fa-check text-[10px]"></i></button>
-                              <button onClick={() => handleEvidenceAction(cat, ev.id, 'NeedsExplanation')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-gray-50 text-orange-500 hover:bg-orange-100'}`} title="Yêu cầu giải trình"><i className="fas fa-comment-dots text-[10px]"></i></button>
-                              <button onClick={() => handleEvidenceAction(cat, ev.id, 'Rejected')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'Rejected' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-gray-50 text-red-600 hover:bg-red-100'}`} title="Không đạt"><i className="fas fa-times text-[10px]"></i></button>
-                            </div>
+                            {selectedStudent.status !== 'Draft' && (
+                              <div className="flex flex-col gap-1">
+                                <button onClick={() => handleEvidenceAction(cat, ev.id, 'Approved')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'Approved' ? 'bg-green-600 text-white shadow-lg shadow-green-600/20' : 'bg-gray-50 text-green-600 hover:bg-green-100'}`} title="Đạt"><i className="fas fa-check text-[10px]"></i></button>
+                                <button onClick={() => handleEvidenceAction(cat, ev.id, 'NeedsExplanation')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-gray-50 text-orange-500 hover:bg-orange-100'}`} title="Yêu cầu giải trình"><i className="fas fa-comment-dots text-[10px]"></i></button>
+                                <button onClick={() => handleEvidenceAction(cat, ev.id, 'Rejected')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'Rejected' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-gray-50 text-red-600 hover:bg-red-100'}`} title="Không đạt"><i className="fas fa-times text-[10px]"></i></button>
+                              </div>
+                            )}
                           </div>
                         )) : (
                           <div className="py-20 text-center space-y-4 bg-white rounded-3xl border-2 border-dashed border-gray-100">

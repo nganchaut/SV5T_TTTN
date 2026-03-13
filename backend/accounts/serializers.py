@@ -60,6 +60,23 @@ class TaiKhoanCreateSerializer(serializers.ModelSerializer):
         user = TaiKhoan(**validated_data)
         user.set_password(password)
         user.save()
+
+        # Tự động tạo profile tương ứng
+        if user.VaiTro == 'SinhVien':
+            from students.models import SinhVien
+            SinhVien.objects.get_or_create(
+                TaiKhoan=user,
+                defaults={
+                    'HoTen': user.TenDangNhap, # Tạm thời lấy tên đăng nhập làm họ tên
+                    'MaSV': user.TenDangNhap,
+                }
+            )
+        else:
+            from .models import NguoiDung
+            NguoiDung.objects.get_or_create(
+                TaiKhoan=user,
+                defaults={'HoTen': user.TenDangNhap}
+            )
         return user
 
 
