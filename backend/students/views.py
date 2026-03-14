@@ -243,7 +243,7 @@ class XacMinhExplainView(APIView):
         if not giai_trinh:
             return Response({'detail': 'Vui lòng nhập nội dung giải trình.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        xm.PhanHoi = giai_trinh # Ở đây backend dùng chung field PhanHoi hoặc bạn có thể thêm field GiaiTrinhSV vào XacMinh model
+        xm.GiaiTrinhSV = giai_trinh
         xm.TrangThai = 'Pending'
         xm.save()
         return Response({'detail': 'Đã gửi giải trình.'})

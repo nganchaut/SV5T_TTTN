@@ -987,6 +987,18 @@ const AdminDashboard: React.FC<{
                         )}
                       </div>
 
+                      {verification?.studentExplanation && (
+                        <div className="mb-8 p-6 bg-blue-900/5 rounded-2xl border border-blue-900/10 flex items-start gap-4">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">
+                            <i className="fas fa-comment-dots"></i>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1">Giải trình từ Sinh viên:</p>
+                            <p className="text-sm font-medium text-gray-700 leading-relaxed italic">"{verification.studentExplanation}"</p>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-4">
                         {list.length > 0 ? list.map(ev => (
                           <div key={ev.id} className={`group bg-white p-5 border-2 rounded-2xl flex gap-6 items-center transition-all hover:border-blue-500/30 ${ev.status === 'Approved' ? 'border-green-500/20 bg-green-50/20' : ev.status === 'Rejected' ? 'border-red-500/20 bg-red-50/20' : ev.status === 'NeedsExplanation' ? 'border-orange-500/30 bg-orange-50/30' : 'border-gray-100'}`}>

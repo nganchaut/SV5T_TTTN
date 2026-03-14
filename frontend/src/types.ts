@@ -52,6 +52,7 @@ export interface Evidence {
 export interface FieldVerification {
   status: 'Pending' | 'Approved' | 'Rejected' | 'NeedsExplanation';
   feedback?: string;
+  studentExplanation?: string;
 }
 
 export interface StudentProfile {

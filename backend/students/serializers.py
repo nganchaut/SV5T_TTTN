@@ -11,7 +11,7 @@ class XacMinhSerializer(serializers.ModelSerializer):
         model = XacMinh
         fields = [
             'id', 'TruongDuLieu', 'TruongDuLieuDisplay',
-            'TrangThai', 'TrangThaiDisplay', 'PhanHoi', 'NgayCapNhat'
+            'TrangThai', 'TrangThaiDisplay', 'PhanHoi', 'GiaiTrinhSV', 'NgayCapNhat'
         ]
         read_only_fields = ['id', 'NgayCapNhat']
 

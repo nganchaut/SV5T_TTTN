@@ -172,6 +172,7 @@ const StudentDashboard: React.FC<{
   if (student.verifications.gpa?.status === 'NeedsExplanation') flaggedFields.push({ key: 'gpa', label: 'GPA Học tập', val: student.gpa });
   if (student.verifications.peScore?.status === 'NeedsExplanation') flaggedFields.push({ key: 'peScore', label: 'Điểm Thể dục', val: student.peScore });
   if (student.verifications.english?.status === 'NeedsExplanation') flaggedFields.push({ key: 'english', label: 'Ngoại ngữ', val: `${student.englishLevel}` });
+  if (student.verifications.partyMember?.status === 'NeedsExplanation') flaggedFields.push({ key: 'partyMember', label: 'Đảng viên', val: student.isPartyMember ? 'Có' : 'Không' });
 
   // GIAO DIỆN KHI HỒ SƠ ĐANG CHỜ DUYỆT (LOCK)
   if (student.status === 'Submitted') {
@@ -319,7 +320,7 @@ const StudentDashboard: React.FC<{
                 <textarea
                   className="w-full p-4 border-2 border-gray-100 focus:border-orange-500 outline-none text-sm min-h-[120px] transition-all bg-gray-50/30"
                   placeholder="Nhập giải trình tại đây..."
-                  value={student.verifications[field.key]?.feedback || ''}
+                  value={student.verifications[field.key]?.studentExplanation || ''}
                   onChange={(e) => updateFieldExplanation(field.key, e.target.value)}
                 />
               </div>
