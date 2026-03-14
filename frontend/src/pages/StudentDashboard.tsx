@@ -792,26 +792,63 @@ const StudentDashboard: React.FC<{
           <h1 className="text-3xl font-black text-[#0054a6] uppercase font-formal tracking-tighter">{student.fullName}</h1>
           <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1 italic">Mã sinh viên: {student.studentId} • {student.faculty}</p>
           {/* Step progress */}
-          <div className="flex items-center gap-1.5 mt-6">
-            {STEPS.map((s, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentStepIdx(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all cursor-pointer
-                    ${idx === currentStepIdx
-                      ? 'bg-blue-900 text-white shadow-md'
-                      : idx < currentStepIdx
-                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                    }`}
-                >
-                  {idx < currentStepIdx && <i className="fas fa-check text-[7px]"></i>}
-                  <span className="hidden sm:inline">{STEP_LABELS[s] || s}</span>
-                  <span className="sm:hidden">{idx + 1}</span>
-                </button>
-                {idx < STEPS.length - 1 && <div className={`w-3 h-0.5 ${idx < currentStepIdx ? 'bg-blue-300' : 'bg-gray-200'}`}></div>}
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center gap-1.5 mt-6">
+            {STEPS.map((s, idx) => {
+              const isCurrent = idx === currentStepIdx;
+              const isPast = idx < currentStepIdx;
+              
+              // Xác định trạng thái đạt hay chưa dựa trên bước hiện tại
+              let isMet = false;
+              if (s === 'HARD_CRITERIA') {
+                 // Đạt nếu có trên 0 điểm tích lũy hoặc tùy logic bạn muốn, tạm coi là True nếu đã qua bước này
+                 isMet = true; 
+              } else if (s === 'SUBMIT') {
+                 isMet = allHardMet;
+              } else {
+                 isMet = catStatus[s as CriterionType] || false;
+              }
+
+              // Mặc định CSS
+              let btnClass = 'bg-gray-100 text-gray-400 hover:bg-gray-200';
+              let lineClass = 'bg-gray-200';
+              let icon = null;
+
+              if (isCurrent) {
+                btnClass = 'bg-blue-900 text-white shadow-md ring-2 ring-blue-300 ring-offset-1';
+              } else if (isPast) {
+                 if (isMet) {
+                   btnClass = 'bg-green-100 text-green-700 hover:bg-green-200';
+                   lineClass = 'bg-green-300';
+                   icon = <i className="fas fa-check text-[7px]"></i>;
+                 } else {
+                   btnClass = 'bg-red-50 text-red-600 hover:bg-red-100';
+                   lineClass = 'bg-red-200';
+                   icon = <i className="fas fa-exclamation text-[7px]"></i>;
+                 }
+              } else {
+                 // Các bước tương lai: Dù là tương lai nhưng nếu đã nhập đủ data và đạt thì hiện xanh luôn cho đẹp
+                 if (s !== 'HARD_CRITERIA' && s !== 'SUBMIT' && isMet) {
+                   btnClass = 'bg-green-50 text-green-600 border border-green-200';
+                   icon = <i className="fas fa-check text-[7px] opacity-50"></i>;
+                 } else if (s === 'SUBMIT' && allHardMet) {
+                   btnClass = 'bg-green-50 text-green-600 border border-green-200';
+                 }
+              }
+
+              return (
+                <div key={idx} className="flex items-center gap-1.5 mb-2 sm:mb-0">
+                  <button
+                    onClick={() => setCurrentStepIdx(idx)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all cursor-pointer ${btnClass}`}
+                  >
+                    {icon}
+                    <span className="hidden sm:inline">{STEP_LABELS[s] || s}</span>
+                    <span className="sm:hidden">{idx + 1}</span>
+                  </button>
+                  {idx < STEPS.length - 1 && <div className={`w-3 h-0.5 ${lineClass}`}></div>}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="flex gap-3">
