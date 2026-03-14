@@ -1,7 +1,7 @@
 import React from 'react';
 import { FeaturedFace } from '../types';
 
-const HomeView: React.FC<{ faces: FeaturedFace[], userRole: 'student' | 'admin' | 'guest', onNavigate: (page: string) => void }> = ({ faces, userRole, onNavigate }) => (
+const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'student' | 'admin' | 'guest', onNavigate: (page: string) => void }> = ({ faces, posts, userRole, onNavigate }) => (
   <div className="space-y-24 pb-20 animate-fade-in font-sans">
     {/* Hero Section */}
     <div className="min-h-[85vh] flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#0a1628] via-[#002b5c] to-[#004b9e]">
@@ -148,6 +148,52 @@ const HomeView: React.FC<{ faces: FeaturedFace[], userRole: 'student' | 'admin' 
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Latest Posts Section */}
+    {posts.filter(p => p.TrangThai === 'published').length > 0 && (
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="flex justify-between items-end mb-12">
+          <div>
+            <p className="text-orange-500 font-black text-xs tracking-widest uppercase mb-4">Tin tức & Thông báo</p>
+            <h2 className="text-3xl md:text-5xl font-black uppercase font-formal tracking-tight text-[#002b5c]">Bài viết mới nhất</h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {posts.filter(p => p.TrangThai === 'published').slice(0, 6).map((post, i) => (
+            <div key={i} className="bg-white border rounded-2xl overflow-hidden hover:shadow-2xl transition-all group flex flex-col">
+              <div className="aspect-video bg-gray-100 overflow-hidden relative">
+                {post.HinhAnh ? (
+                  <img src={post.HinhAnh} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={post.TieuDe} />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                    <i className="fas fa-image text-4xl"></i>
+                  </div>
+                )}
+                <div className="absolute top-4 left-4">
+                  <span className="px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase rounded-full">Tin tức</span>
+                </div>
+              </div>
+              <div className="p-8 flex-1 flex flex-col justify-between">
+                <div onClick={() => onNavigate(`/posts/${post.id}`)} className="cursor-pointer">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">
+                    <i className="far fa-calendar"></i>
+                    <span>{post.NgayDang}</span>
+                  </div>
+                  <h3 className="text-lg font-black text-[#002b5c] uppercase leading-tight group-hover:text-orange-600 transition-colors line-clamp-2 mb-4">{post.TieuDe}</h3>
+                  <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed mb-6">{post.NoiDung}</p>
+                </div>
+                <button 
+                  onClick={() => onNavigate(`/posts/${post.id}`)}
+                  className="flex items-center gap-2 text-blue-900 font-black text-[10px] uppercase tracking-widest hover:text-orange-600 transition-colors"
+                >
+                  Xem chi tiết <i className="fas fa-arrow-right text-[8px]"></i>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )}

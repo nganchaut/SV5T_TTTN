@@ -9,6 +9,7 @@ class MinhChungSerializer(serializers.ModelSerializer):
     is_tieu_chi_cung = serializers.BooleanField(read_only=True)
     NhomTieuChiTen = serializers.CharField(source='TieuChi.NhomTieuChi.TenNhom', read_only=True)
     TieuChiMoTa = serializers.CharField(source='TieuChi.MoTa', read_only=True)
+    TieuChi = serializers.SlugRelatedField(read_only=True, slug_field='MaTieuChi')
     FileUrl = serializers.SerializerMethodField()
 
     class Meta:

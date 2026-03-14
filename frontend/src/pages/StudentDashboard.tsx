@@ -12,7 +12,6 @@ const POINT_MATRIX: Record<EvidenceLevel, Record<EvidenceType, number>> = {
 };
 
 const STEPS = [
-  'HARD_CRITERIA' as const,
   CriterionType.ETHICS,
   CriterionType.ACADEMIC,
   CriterionType.PHYSICAL,
@@ -22,63 +21,138 @@ const STEPS = [
 ];
 
 const STEP_LABELS: Record<string, string> = {
-  'HARD_CRITERIA': 'Tiêu chí cứng',
-  [CriterionType.ETHICS]: 'MC Đạo đức',
-  [CriterionType.ACADEMIC]: 'MC Học tập',
-  [CriterionType.PHYSICAL]: 'MC Thể lực',
-  [CriterionType.VOLUNTEER]: 'MC Tình nguyện',
-  [CriterionType.INTEGRATION]: 'MC Hội nhập',
+  [CriterionType.ETHICS]: 'Đạo đức tốt',
+  [CriterionType.ACADEMIC]: 'Học tập tốt',
+  [CriterionType.PHYSICAL]: 'Thể lực tốt',
+  [CriterionType.VOLUNTEER]: 'Tình nguyện tốt',
+  [CriterionType.INTEGRATION]: 'Hội nhập tốt',
   'SUBMIT': 'Gửi hồ sơ',
 };
 
-export const checkHardMet = (cat: CriterionType, student: StudentProfile) => {
+export const checkHardMet = (cat: CriterionType, student: StudentProfile, criteriaGroups: any[]) => {
+  const group = criteriaGroups.find(g => {
+    const catMap: Record<string, CriterionType> = {
+      'Đạo đức tốt': CriterionType.ETHICS,
+      'Học tập tốt': CriterionType.ACADEMIC,
+      'Thể lực tốt': CriterionType.PHYSICAL,
+      'Tình nguyện tốt': CriterionType.VOLUNTEER,
+      'Hội nhập tốt': CriterionType.INTEGRATION
+    };
+    return catMap[g.TenNhom] === cat;
+  });
+
+  if (!group) return false;
+
   const evs = student.evidences[cat] || [];
   const approvedEvs = evs.filter(e => e.status === 'Approved' || e.status === 'Pending');
 
-  switch (cat) {
-    case CriterionType.ETHICS:
-      return student.trainingPoints >= 80 && student.noViolation;
-    case CriterionType.ACADEMIC:
-      return student.gpa >= 3.2 && student.gpa <= 4.0;
-    case CriterionType.PHYSICAL:
-      return student.peScore >= 7.0 || approvedEvs.some(e => e.subCriterionId === 'phy_hard_2');
-    case CriterionType.VOLUNTEER: {
-      const hasMainCamp = approvedEvs.some(e => ['vol_hard_1', 'vol_hard_3'].includes(e.subCriterionId));
-      
-      const bloodDonationQty = approvedEvs
-        .filter(e => e.subCriterionId === 'vol_hard_4')
-        .reduce((sum, e) => sum + (e.qty || 1), 0);
-      const hasBlood = bloodDonationQty >= 2;
-      
-      const dayCount = approvedEvs
-        .filter(e => e.subCriterionId === 'vol_hard_2')
-        .reduce((sum, e) => sum + (e.qty || 1), 0);
-        
-      return hasMainCamp || dayCount >= 3 || hasBlood;
-    }
-    case CriterionType.INTEGRATION:
-      return (
-        (((['B1', 'B2'].includes(student.englishLevel) || student.englishGpa >= 3.0) && (student.englishGpa <= 4.0)) ||
-          approvedEvs.some(e => ['int_hard_3', 'int_hard_4', 'int_hard_5'].includes(e.subCriterionId)))
-      );
-    default:
-      return false;
+  // All hard criteria from backend must be met
+  const hardCriteria = group.tieu_chi.filter((tc: any) => tc.LoaiTieuChi === 'Cung');
+  
+  if (hardCriteria.length === 0) {
+    // Fallback logic for basic requirements if no criteria are defined in backend
+    // but usually there should be.
+    if (cat === CriterionType.ETHICS) return student.trainingPoints >= 80 && student.noViolation;
+    if (cat === CriterionType.ACADEMIC) return student.gpa >= 3.2 && student.gpa <= 4.0;
+    return true;
   }
+
+  return hardCriteria.every((tc: any) => {
+    const slug = tc.MaTieuChi;
+    
+    // Profile-based checks
+    if (slug === 'eth_hard_1') return student.trainingPoints >= 80;
+    if (slug === 'eth_hard_2') return student.noViolation;
+    if (slug === 'aca_hard_1') return student.gpa >= 3.2;
+    if (slug === 'phy_hard_1') return student.peScore >= 7.0;
+    
+    // Education Level/English (Integration)
+    if (slug === 'int_hard_1' || slug === 'int_hard_2') {
+       return (['B1', 'B2'].includes(student.englishLevel) || student.englishGpa >= 3.0);
+    }
+
+    // Special logic for slug-based evidence (if any)
+    if (slug === 'phy_hard_2') {
+       return student.peScore >= 7.0 || approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
+    }
+    
+    if (slug === 'vol_hard_1' || slug === 'vol_hard_2' || slug === 'vol_hard_3' || slug === 'vol_hard_4') {
+       // Original complex logic for volunteer... 
+       // For simplicity in a dynamic system, if it's a hard criterion in backend,
+       // and it has an approved evidence, it's met.
+       return approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
+    }
+
+    // Default: Check if any approved evidence exists for this specific TC ID
+    return approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
+  });
 };
 
 const StudentDashboard: React.FC<{
   student: StudentProfile;
   addEvidence: (type: CriterionType, ev: Evidence) => void;
   removeEvidence: (type: CriterionType, id: string) => void;
+  updateEvidence: (type: CriterionType, id: string, ev: Evidence) => void;
   updateProfile: (data: Partial<StudentProfile>) => void;
   updateEvidenceExplanation: (cat: CriterionType, id: string, explanation: string) => void;
   updateFieldExplanation: (field: keyof StudentProfile['verifications'], explanation: string) => void;
   onSubmit: () => void;
   onResubmit: () => void;
   onUnsubmit: () => void;
-}> = ({ student, addEvidence, removeEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit }) => {
+  criteriaGroups: any[];
+}> = ({ student, addEvidence, removeEvidence, updateEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit, criteriaGroups }) => {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string } | null>(null);
+  const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string, editingEvidence?: Evidence } | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+
+  const handleFinalSubmitExplanation = async () => {
+    try {
+      setIsResubmitting(true);
+      
+      // 1. Gửi giải trình cho các trường dữ liệu chung (CHỈ gửi khi có thay đổi)
+      for (const [key, exp] of Object.entries(localFieldExplanations)) {
+        const file = localFieldFiles[key];
+        const originalExp = (student.verifications[key] as FieldVerification)?.explanation || '';
+        if (exp !== originalExp || file) {
+          await updateFieldExplanation(key as any, exp, file);
+        }
+      }
+
+      // 2. Gửi giải trình cho các minh chứng (CHỈ gửi khi có thay đổi)
+      for (const [id, exp] of Object.entries(localEvidenceExplanations)) {
+        const file = localEvidenceFiles[id];
+        
+        // Tìm minh chứng gốc để so sánh
+        let originalEv: Evidence | undefined;
+        let category: CriterionType | null = null;
+        for (const [cat, evs] of Object.entries(student.evidences)) {
+          const found = (evs as Evidence[]).find(e => e.id === id);
+          if (found) {
+            originalEv = found;
+            category = cat as CriterionType;
+            break;
+          }
+        }
+
+        const originalExp = originalEv?.studentExplanation || '';
+        if (category && (exp !== originalExp || file)) {
+          await updateEvidenceExplanation(category, id, exp, file);
+        }
+      }
+
+      // 3. Cuối cùng mới thực hiện submit profile để chuyển trạng thái sang Submitted
+      await onResubmit();
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (e) {
+      console.error("Submit Error:", e);
+      alert("Có lỗi xảy ra khi gửi giải trình. Vui lòng thử lại.");
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
 
   // Local state for form inputs to prevent typing glitches
   const [localData, setLocalData] = useState({
@@ -91,7 +165,31 @@ const StudentDashboard: React.FC<{
     isPartyMember: student.isPartyMember || false,
   });
 
-  // Sync localData when student prop changes from outside (e.g., initial load)
+  // Local state for explanations to prevent lag
+  const [localFieldExplanations, setLocalFieldExplanations] = useState<Record<string, string>>({});
+  const [localEvidenceExplanations, setLocalEvidenceExplanations] = useState<Record<string, string>>({});
+  const [localFieldFiles, setLocalFieldFiles] = useState<Record<string, File>>({});
+  const [localEvidenceFiles, setLocalEvidenceFiles] = useState<Record<string, File>>({});
+
+  // Initialize local explanations from current student data
+  React.useEffect(() => {
+    const fieldExps: Record<string, string> = {};
+    Object.entries(student.verifications).forEach(([k, v]) => {
+      const fieldVer = v as FieldVerification;
+      if (fieldVer.explanation) fieldExps[k] = fieldVer.explanation;
+    });
+    setLocalFieldExplanations(fieldExps);
+
+    const evExps: Record<string, string> = {};
+    Object.values(student.evidences).flat().forEach(val => {
+      const ev = val as Evidence;
+      if (ev.studentExplanation) evExps[ev.id] = ev.studentExplanation;
+    });
+    setLocalEvidenceExplanations(evExps);
+  }, [student.id]);
+
+  // Remove the aggressive useEffect that overwrites localData on every keystroke/save 
+  // Sync localData ONLY when student ID changes (e.g., initial load or user switch)
   React.useEffect(() => {
     setLocalData({
       trainingPoints: student.trainingPoints || 0,
@@ -102,18 +200,28 @@ const StudentDashboard: React.FC<{
       noViolation: student.noViolation || false,
       isPartyMember: student.isPartyMember || false,
     });
-  }, [student.trainingPoints, student.gpa, student.peScore, student.englishGpa, student.englishLevel, student.noViolation, student.isPartyMember]);
+  }, [student.id]);
 
   const handleLocalChange = (field: keyof typeof localData, value: any) => {
-    setLocalData(prev => ({ ...prev, [field]: value }));
-    if (typeof value === 'boolean' || field === 'englishLevel') {
+    // For booleans, the value comes straight from the onChange event 
+    const finalValue = field === 'noViolation' && typeof value === 'string' ? value === 'true' : value;
+    
+    setLocalData(prev => ({ ...prev, [field]: finalValue }));
+    if (typeof finalValue === 'boolean' || field === 'englishLevel') {
       // For booleans/selects, update immediately
-      updateProfile({ [field]: value });
+      updateProfile({ [field]: finalValue });
     }
   };
 
   const handleBlur = (field: keyof typeof localData, isFloat = false, maxVal = 100) => {
     const valStr = String(localData[field]);
+    if (valStr.trim() === '') {
+       // Allow empty fields (represented as 0 or null depending on backend)
+       setLocalData(prev => ({ ...prev, [field]: 0 }));
+       updateProfile({ [field]: 0 });
+       return;
+    }
+
     let num = isFloat ? parseFloat(valStr) : parseInt(valStr, 10);
     if (isNaN(num)) num = 0;
     num = Math.min(maxVal, Math.max(0, num));
@@ -124,7 +232,38 @@ const StudentDashboard: React.FC<{
     updateProfile({ [field]: num });
   };
 
-  const isLocked = student.status === 'Approved' || student.status === 'Submitted' || student.status === 'Rejected';
+  const handleSaveEvidence = (ev: Evidence) => {
+    if (addingTo?.editingEvidence) {
+      updateEvidence(addingTo.type, addingTo.editingEvidence.id, ev);
+    } else {
+      addEvidence(addingTo!.type, ev);
+    }
+    setAddingTo(null);
+  };
+
+  const handleEditClick = (type: CriterionType, isHard: boolean, ev: Evidence) => {
+    // Find sub-criterion name
+    const group = criteriaGroups.find(g => {
+      const catMap: Record<string, CriterionType> = {
+        'Đạo đức tốt': CriterionType.ETHICS,
+        'Học tập tốt': CriterionType.ACADEMIC,
+        'Thể lực tốt': CriterionType.PHYSICAL,
+        'Tình nguyện tốt': CriterionType.VOLUNTEER,
+        'Hội nhập tốt': CriterionType.INTEGRATION
+      };
+      return catMap[g.TenNhom] === type;
+    });
+    const sub = group?.tieu_chi.find((tc: any) => String(tc.id) === ev.subCriterionId);
+    
+    setAddingTo({
+      type,
+      isHard,
+      subName: sub?.MoTa || '',
+      editingEvidence: ev
+    });
+  };
+
+  const isLocked = ['Submitted', 'Approved', 'Rejected'].includes(student.status);
   const isProcessing = student.status === 'Processing';
   const isApproved = student.status === 'Approved';
   const isRejected = student.status === 'Rejected';
@@ -180,7 +319,7 @@ const StudentDashboard: React.FC<{
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             { label: 'Tổng điểm tích lũy', val: student.totalScore, icon: 'fa-star', color: 'text-orange-500' },
-            { label: 'Tiêu chí đạt', val: Object.values(CriterionType).filter(c => checkHardMet(c as CriterionType, student)).length + '/5', icon: 'fa-check-circle', color: 'text-green-500' },
+            { label: 'Tiêu chí đạt', val: Object.values(CriterionType).filter(c => checkHardMet(c as CriterionType, student, criteriaGroups)).length + '/5', icon: 'fa-check-circle', color: 'text-green-500' },
             { label: 'Minh chứng đính kèm', val: Object.values(student.evidences).flat().length, icon: 'fa-file-alt', color: 'text-blue-500' },
           ].map((item, i) => (
             <div key={i} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
@@ -256,6 +395,7 @@ const StudentDashboard: React.FC<{
     );
   }
 
+
   // GIAO DIỆN CHỈ HIỂN THỊ KHI ĐANG GIẢI TRÌNH
   if (isProcessing) {
     return (
@@ -289,9 +429,32 @@ const StudentDashboard: React.FC<{
                 <textarea
                   className="w-full p-4 border-2 border-gray-100 focus:border-orange-500 outline-none text-sm min-h-[120px] transition-all bg-gray-50/30"
                   placeholder="Nhập giải trình tại đây..."
-                  value={student.verifications[field.key]?.feedback || ''}
-                  onChange={(e) => updateFieldExplanation(field.key, e.target.value)}
+                  value={localFieldExplanations[field.key] || ''}
+                  onChange={(e) => setLocalFieldExplanations(prev => ({ ...prev, [field.key]: e.target.value }))}
                 />
+
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id={`field-file-upload-${field.key}`}
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setLocalFieldFiles(prev => ({ ...prev, [field.key]: file }));
+                          alert("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút Gửi Phản Hồi Giải Trình.");
+                        }
+                      }}
+                    />
+                    <label htmlFor={`field-file-upload-${field.key}`} className={`px-4 py-2 border-2 border-dashed rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${localFieldFiles[field.key] ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-600'}`}>
+                      <i className={localFieldFiles[field.key] ? "fas fa-check-circle" : "fas fa-paperclip"}></i>
+                      {localFieldFiles[field.key] ? `Đã chọn: ${localFieldFiles[field.key].name}` : "Tải lên file Hình ảnh/PDF mới"}
+                    </label>
+                    <span className="text-[10px] text-gray-400 italic">Chọn file minh chứng bổ sung cho {field.label.toLowerCase()}.</span>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -304,7 +467,19 @@ const StudentDashboard: React.FC<{
                   <span className="text-[9px] font-black text-orange-600 uppercase tracking-[0.2em] mb-1 block">{cat}</span>
                   <h4 className="text-base font-black text-blue-900 uppercase">{ev.name}</h4>
                 </div>
-                <button onClick={() => window.open(ev.fileUrl, '_blank')} className="px-5 py-2.5 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md">Mở Minh chứng</button>
+                <button 
+                  onClick={() => {
+                     if (!ev.fileUrl) {
+                        alert('Không tìm thấy file đính kèm hợp lệ!');
+                        return;
+                     }
+                     const url = ev.fileUrl.startsWith('http') ? ev.fileUrl : `http://localhost:8000${ev.fileUrl.startsWith('/') ? '' : '/'}${ev.fileUrl}`;
+                     window.open(url, '_blank');
+                  }} 
+                  className="px-5 py-2.5 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md"
+                >
+                   Mở Minh chứng
+                </button>
               </div>
               <div className="bg-orange-50/50 p-5 rounded border-l-4 border-orange-400">
                 <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Lý do từ Admin:</p>
@@ -315,9 +490,32 @@ const StudentDashboard: React.FC<{
                 <textarea
                   className="w-full p-4 border-2 border-gray-100 focus:border-orange-500 outline-none text-sm min-h-[120px] transition-all bg-gray-50/30"
                   placeholder="Giải trình lý do hoặc bổ sung thông tin..."
-                  value={ev.studentExplanation || ''}
-                  onChange={(e) => updateEvidenceExplanation(cat, ev.id, e.target.value)}
+                  value={localEvidenceExplanations[ev.id] || ''}
+                  onChange={(e) => setLocalEvidenceExplanations(prev => ({ ...prev, [ev.id]: e.target.value }))}
                 />
+                
+                <div className="flex flex-col gap-2 pt-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id={`file-upload-${ev.id}`}
+                      accept="image/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setLocalEvidenceFiles(prev => ({ ...prev, [ev.id]: file }));
+                          alert("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút Gửi Phản Hồi Giải Trình.");
+                        }
+                      }}
+                    />
+                    <label htmlFor={`file-upload-${ev.id}`} className={`px-4 py-2 border-2 border-dashed rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${localEvidenceFiles[ev.id] ? 'border-green-500 text-green-600 bg-green-50' : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:text-blue-600'}`}>
+                      <i className={localEvidenceFiles[ev.id] ? "fas fa-check-circle" : "fas fa-paperclip"}></i>
+                      {localEvidenceFiles[ev.id] ? `Đã chọn: ${localEvidenceFiles[ev.id].name}` : "Tải lên file Hình ảnh/PDF mới"}
+                    </label>
+                    <span className="text-[10px] text-gray-400 italic">Chọn file để thay thế hoặc bổ sung minh chứng.</span>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
@@ -332,9 +530,12 @@ const StudentDashboard: React.FC<{
 
         <div className="py-16 text-center border-t border-gray-100">
           <button
-            onClick={onResubmit}
-            className="px-20 py-6 bg-blue-900 text-white font-black text-xs uppercase tracking-[0.5em] hover:bg-[#f26522] transition-all shadow-2xl active:scale-95"
+            onClick={handleFinalSubmitExplanation}
+            disabled={isResubmitting}
+            className={`px-20 py-6 font-black text-xs uppercase tracking-[0.5em] transition-all shadow-2xl active:scale-95 flex items-center gap-4 mx-auto
+              ${isResubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-900 text-white hover:bg-[#f26522]'}`}
           >
+            {isResubmitting && <i className="fas fa-spinner fa-spin"></i>}
             GỬI PHẢN HỒI GIẢI TRÌNH
           </button>
         </div>
@@ -344,9 +545,8 @@ const StudentDashboard: React.FC<{
 
   // GIAO DIỆN NỘP MỚI (CHỈ HIỆN KHI LÀ DRAFT)
   const currentStep = STEPS[currentStepIdx];
-  const isHardCriteriaStep = currentStep === 'HARD_CRITERIA';
   const isReviewStep = currentStep === 'SUBMIT';
-  const isEvidenceStep = !isHardCriteriaStep && !isReviewStep;
+  const isEvidenceStep = !isReviewStep;
   // Use currently typed data for instant Achieved UI feedback
   const currentStudentDataForCheck = {
     ...student,
@@ -360,219 +560,21 @@ const StudentDashboard: React.FC<{
   };
 
   const catStatus = {
-    [CriterionType.ETHICS]: checkHardMet(CriterionType.ETHICS, currentStudentDataForCheck),
-    [CriterionType.ACADEMIC]: checkHardMet(CriterionType.ACADEMIC, currentStudentDataForCheck),
-    [CriterionType.PHYSICAL]: checkHardMet(CriterionType.PHYSICAL, currentStudentDataForCheck),
-    [CriterionType.VOLUNTEER]: checkHardMet(CriterionType.VOLUNTEER, currentStudentDataForCheck),
-    [CriterionType.INTEGRATION]: checkHardMet(CriterionType.INTEGRATION, currentStudentDataForCheck),
+    [CriterionType.ETHICS]: checkHardMet(CriterionType.ETHICS, currentStudentDataForCheck, criteriaGroups),
+    [CriterionType.ACADEMIC]: checkHardMet(CriterionType.ACADEMIC, currentStudentDataForCheck, criteriaGroups),
+    [CriterionType.PHYSICAL]: checkHardMet(CriterionType.PHYSICAL, currentStudentDataForCheck, criteriaGroups),
+    [CriterionType.VOLUNTEER]: checkHardMet(CriterionType.VOLUNTEER, currentStudentDataForCheck, criteriaGroups),
+    [CriterionType.INTEGRATION]: checkHardMet(CriterionType.INTEGRATION, currentStudentDataForCheck, criteriaGroups),
   };
 
   const allHardMet = Object.values(catStatus).filter(v => v).length === 5;
   const metCount = Object.values(catStatus).filter(v => v).length;
 
   // ====== PHASE 1: TRANG TIÊU CHÍ CỨNG ======
-  const renderHardCriteriaPage = () => {
-    const criteriaCards: { cat: CriterionType; icon: string; label: string; color: string }[] = [
-      { cat: CriterionType.ETHICS, icon: 'fa-heart', label: 'Đạo đức tốt', color: 'rose' },
-      { cat: CriterionType.ACADEMIC, icon: 'fa-book-open', label: 'Học tập tốt', color: 'blue' },
-      { cat: CriterionType.PHYSICAL, icon: 'fa-running', label: 'Thể lực tốt', color: 'emerald' },
-      { cat: CriterionType.INTEGRATION, icon: 'fa-globe-asia', label: 'Hội nhập tốt', color: 'violet' },
-    ];
-
-    return (
-      <div className="animate-fade-in space-y-8">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#002b5c] to-[#003d7a] p-8 text-white rounded-lg shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <div className="w-14 h-14 bg-white/10 rounded-xl flex items-center justify-center">
-                <i className="fas fa-clipboard-check text-2xl text-orange-400"></i>
-              </div>
-              <div>
-                <h2 className="text-xl font-black uppercase tracking-tight">Bước 1 — Thông tin tiêu chí cứng</h2>
-                <p className="text-blue-200/70 text-sm font-medium mt-1">Nhập đầy đủ thông tin các tiêu chí bắt buộc để đủ điều kiện xét duyệt</p>
-              </div>
-            </div>
-            <div className="text-right hidden md:block">
-              <p className="text-[9px] font-black uppercase tracking-widest text-orange-400 mb-1">Tiêu chí đạt</p>
-              <p className="text-3xl font-black font-formal">{metCount}<span className="text-lg text-white/40">/5</span></p>
-            </div>
-          </div>
-        </div>
-
-        {/* Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Đạo đức */}
-          <div className={`bg-white border-2 rounded-lg shadow-sm overflow-hidden transition-all ${catStatus[CriterionType.ETHICS] ? 'border-green-200' : 'border-gray-100'}`}>
-            <div className={`px-6 py-4 flex items-center justify-between ${catStatus[CriterionType.ETHICS] ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${catStatus[CriterionType.ETHICS] ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                  <i className="fas fa-heart text-sm"></i>
-                </div>
-                <h3 className="text-sm font-black text-blue-900 uppercase tracking-tight">Đạo đức tốt</h3>
-              </div>
-              <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full ${catStatus[CriterionType.ETHICS] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {catStatus[CriterionType.ETHICS] ? '✓ Đạt' : '✗ Chưa đạt'}
-              </span>
-            </div>
-            <div className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Điểm rèn luyện học kỳ (0-100) <span className="text-red-400">*</span></label>
-                <input 
-                  disabled={isLocked} 
-                  type="number" max="100" 
-                  value={localData.trainingPoints === 0 ? '' : localData.trainingPoints} 
-                  onChange={(e) => handleLocalChange('trainingPoints', e.target.value)} 
-                  onBlur={() => handleBlur('trainingPoints', false, 100)}
-                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" 
-                  placeholder="Nhập từ 80 trở lên" 
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-all">
-                  <input disabled={isLocked} type="checkbox" checked={localData.noViolation} onChange={(e) => handleLocalChange('noViolation', e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
-                  <span className="text-xs font-bold text-gray-700">Cam kết không vi phạm nội quy</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-all">
-                  <input disabled={isLocked} type="checkbox" checked={localData.isPartyMember} onChange={(e) => handleLocalChange('isPartyMember', e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
-                  <span className="text-xs font-bold text-gray-700">Là Đảng viên Cộng sản Việt Nam <span className="text-orange-500 font-black">(+0.4đ)</span></span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Học tập */}
-          <div className={`bg-white border-2 rounded-lg shadow-sm overflow-hidden transition-all ${catStatus[CriterionType.ACADEMIC] ? 'border-green-200' : 'border-gray-100'}`}>
-            <div className={`px-6 py-4 flex items-center justify-between ${catStatus[CriterionType.ACADEMIC] ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${catStatus[CriterionType.ACADEMIC] ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                  <i className="fas fa-book-open text-sm"></i>
-                </div>
-                <h3 className="text-sm font-black text-blue-900 uppercase tracking-tight">Học tập tốt</h3>
-              </div>
-              <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full ${catStatus[CriterionType.ACADEMIC] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {catStatus[CriterionType.ACADEMIC] ? '✓ Đạt' : '✗ Chưa đạt'}
-              </span>
-            </div>
-            <div className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">GPA Học tập tích lũy (Hệ 4.0) <span className="text-red-400">*</span></label>
-                <input 
-                  disabled={isLocked} 
-                  type="number" step="0.01" max="4.0" 
-                  value={localData.gpa === 0 ? '' : localData.gpa} 
-                  onChange={(e) => handleLocalChange('gpa', e.target.value)} 
-                  onBlur={() => handleBlur('gpa', true, 4.0)}
-                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" 
-                  placeholder="Nhập từ 3.2 trở lên" 
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Thể lực */}
-          <div className={`bg-white border-2 rounded-lg shadow-sm overflow-hidden transition-all ${catStatus[CriterionType.PHYSICAL] ? 'border-green-200' : 'border-gray-100'}`}>
-            <div className={`px-6 py-4 flex items-center justify-between ${catStatus[CriterionType.PHYSICAL] ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${catStatus[CriterionType.PHYSICAL] ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                  <i className="fas fa-running text-sm"></i>
-                </div>
-                <h3 className="text-sm font-black text-blue-900 uppercase tracking-tight">Thể lực tốt</h3>
-              </div>
-              <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full ${catStatus[CriterionType.PHYSICAL] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {catStatus[CriterionType.PHYSICAL] ? '✓ Đạt' : '✗ Chưa đạt'}
-              </span>
-            </div>
-            <div className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Điểm TB môn Thể dục (Thang 10) <span className="text-red-400">*</span></label>
-                <input 
-                  disabled={isLocked} 
-                  type="number" step="0.1" max="10" 
-                  value={localData.peScore === 0 ? '' : localData.peScore} 
-                  onChange={(e) => handleLocalChange('peScore', e.target.value)} 
-                  onBlur={() => handleBlur('peScore', true, 10.0)}
-                  className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" 
-                  placeholder="Nhập từ 7.0 trở lên" 
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Hội nhập */}
-          <div className={`bg-white border-2 rounded-lg shadow-sm overflow-hidden transition-all ${catStatus[CriterionType.INTEGRATION] ? 'border-green-200' : 'border-gray-100'}`}>
-            <div className={`px-6 py-4 flex items-center justify-between ${catStatus[CriterionType.INTEGRATION] ? 'bg-green-50' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${catStatus[CriterionType.INTEGRATION] ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                  <i className="fas fa-globe-asia text-sm"></i>
-                </div>
-                <h3 className="text-sm font-black text-blue-900 uppercase tracking-tight">Hội nhập tốt</h3>
-              </div>
-              <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full ${catStatus[CriterionType.INTEGRATION] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                {catStatus[CriterionType.INTEGRATION] ? '✓ Đạt' : '✗ Chưa đạt'}
-              </span>
-            </div>
-            <div className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Chứng chỉ ngoại ngữ <span className="text-red-400">*</span></label>
-                  <select disabled={isLocked} value={localData.englishLevel} onChange={(e) => handleLocalChange('englishLevel', e.target.value)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg font-bold text-xs transition-all focus:border-blue-600 outline-none">
-                    <option value="None">Chưa có</option>
-                    <option value="B1">B1</option>
-                    <option value="B2">B2 trở lên</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">GPA ngoại ngữ <span className="text-red-400">*</span></label>
-                  <input 
-                    disabled={isLocked} 
-                    type="number" step="0.01" max="4" 
-                    value={localData.englishGpa === 0 ? '' : localData.englishGpa} 
-                    onChange={(e) => handleLocalChange('englishGpa', e.target.value)} 
-                    onBlur={() => handleBlur('englishGpa', true, 4.0)}
-                    className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg font-bold text-sm transition-all focus:border-blue-600 outline-none" 
-                    placeholder="≥ 3.0" 
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tình nguyện note */}
-        <div className={`bg-white border-2 rounded-lg shadow-sm overflow-hidden transition-all ${catStatus[CriterionType.VOLUNTEER] ? 'border-green-200' : 'border-gray-100'}`}>
-          <div className={`px-6 py-4 flex items-center justify-between ${catStatus[CriterionType.VOLUNTEER] ? 'bg-green-50' : 'bg-gray-50'}`}>
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${catStatus[CriterionType.VOLUNTEER] ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                <i className="fas fa-hands-helping text-sm"></i>
-              </div>
-              <h3 className="text-sm font-black text-blue-900 uppercase tracking-tight">Tình nguyện tốt</h3>
-            </div>
-            <span className={`px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full ${catStatus[CriterionType.VOLUNTEER] ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-600'}`}>
-              {catStatus[CriterionType.VOLUNTEER] ? '✓ Đạt' : '➡ Đợi nộp minh chứng'}
-            </span>
-          </div>
-          <div className="p-6">
-            <div className={`flex items-start gap-3 p-4 rounded-lg border ${catStatus[CriterionType.VOLUNTEER] ? 'bg-green-50 border-green-100' : 'bg-blue-50 border-blue-100'}`}>
-              <i className={`fas ${catStatus[CriterionType.VOLUNTEER] ? 'fa-check text-green-500' : 'fa-info-circle text-blue-500'} mt-0.5`}></i>
-              <p className={`text-xs font-medium leading-relaxed ${catStatus[CriterionType.VOLUNTEER] ? 'text-green-700' : 'text-blue-700'}`}>
-                {catStatus[CriterionType.VOLUNTEER] 
-                  ? 'Tuyệt vời! Bạn đã nộp đủ minh chứng cho tiêu chí Tình nguyện.'
-                  : 'Đừng lo! Tiêu chí Tình nguyện cần được xác nhận bằng hồ sơ thật. Bạn vui lòng nhấn nút "Tiếp theo", tìm mục "Minh chứng tiêu chí CỨNG" và tải lên để được dán nhãn Đạt.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // ====== PHASE 2: TRANG MINH CHỨNG BỔ SUNG ======
   const renderEvidencePage = (cat: CriterionType) => {
     const isHardMet = catStatus[cat];
-    const profileBasedCriteria = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
-    const hardSubs = SUB_CRITERIA[cat].filter(sub => sub.isHard && !profileBasedCriteria.includes(sub.id));
-    const softSubs = SUB_CRITERIA[cat].filter(sub => !sub.isHard && !profileBasedCriteria.includes(sub.id));
 
     const catIcons: Record<string, string> = {
       [CriterionType.ETHICS]: 'fa-heart',
@@ -582,9 +584,31 @@ const StudentDashboard: React.FC<{
       [CriterionType.INTEGRATION]: 'fa-globe-asia',
     };
 
+    const groups: Record<string, any> = {};
+    criteriaGroups.forEach(g => {
+      const catMap: Record<string, CriterionType> = {
+        'Đạo đức tốt': CriterionType.ETHICS,
+        'Học tập tốt': CriterionType.ACADEMIC,
+        'Thể lực tốt': CriterionType.PHYSICAL,
+        'Tình nguyện tốt': CriterionType.VOLUNTEER,
+        'Hội nhập tốt': CriterionType.INTEGRATION
+      };
+      groups[catMap[g.TenNhom]] = g;
+    });
+
+    const currentGroup = groups[cat];
+    const hardSubsRaw = currentGroup?.tieu_chi?.filter((tc: any) => tc.LoaiTieuChi === 'Cung') || [];
+    const softSubsRaw = currentGroup?.tieu_chi?.filter((tc: any) => tc.LoaiTieuChi === 'Cong') || [];
+
+    const profileBasedSlugs = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
+    
+    // Separate hard into Profile vs Uploads
+    const hardProfileSlugs = hardSubsRaw.filter((tc: any) => profileBasedSlugs.includes(tc.MaTieuChi));
+    const hardUploads = hardSubsRaw.filter((tc: any) => !profileBasedSlugs.includes(tc.MaTieuChi));
+
     return (
       <div className="animate-fade-in space-y-8">
-        {/* Header */}
+        {/* Category Header */}
         <div className="bg-white border-2 border-gray-100 rounded-lg p-6 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -592,7 +616,7 @@ const StudentDashboard: React.FC<{
             </div>
             <div>
               <h2 className="text-lg font-black text-blue-900 uppercase tracking-tight">{cat}</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Bước {currentStepIdx + 1}/{STEPS.length} — Minh chứng bổ sung</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Tiêu chí {currentStepIdx + 1}/{STEPS.length - 1}</p>
             </div>
           </div>
           <span className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-full ${isHardMet ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
@@ -600,104 +624,175 @@ const StudentDashboard: React.FC<{
           </span>
         </div>
 
-        {/* Hard evidence subs (cần upload minh chứng) */}
-        {hardSubs.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] border-b-2 border-blue-900 pb-2 inline-block">
-              <i className="fas fa-shield-alt mr-2"></i>Minh chứng tiêu chí cứng
-            </h3>
-            {hardSubs.map(sub => {
-              const subEvs = student.evidences[cat].filter(e => e.subCriterionId === sub.id);
-              return (
-                <div key={sub.id} className={`p-5 border-l-4 transition-all bg-white rounded-lg shadow-sm ${subEvs.length > 0 ? 'border-blue-600' : 'border-gray-200'}`}>
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1">
-                      <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-blue-600 rounded inline-block mb-1">Cứng</span>
-                      <p className="text-xs font-bold text-gray-800 leading-snug">{sub.description}</p>
-                    </div>
-                    {!isLocked && (
-                      <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.description })} className="px-4 py-2 bg-blue-50 text-blue-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-blue-100 transition-all whitespace-nowrap">
-                        <i className="fas fa-upload mr-1.5"></i>Tải lên
-                      </button>
+        {/* Section 1: MANDATORY CRITERIA (Hard) */}
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black text-blue-900 uppercase tracking-[0.2em] border-b-2 border-blue-900 pb-2 inline-block">
+            <i className="fas fa-exclamation-circle mr-2"></i>Tiêu chí bắt buộc (Phải đạt)
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Hard Profile Fields */}
+            {hardProfileSlugs.length > 0 && (
+              <div className="bg-gray-50/50 p-6 rounded-lg border border-gray-100 space-y-4">
+                {cat === CriterionType.ETHICS && (
+                  <>
+                    {hardProfileSlugs.some((tc: any) => tc.MaTieuChi === 'eth_hard_1') && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Điểm rèn luyện <span className="text-red-400">*</span></label>
+                        <input disabled={isLocked} type="number" max="100" value={localData.trainingPoints === 0 ? '' : localData.trainingPoints} onChange={(e) => handleLocalChange('trainingPoints', e.target.value)} onBlur={() => handleBlur('trainingPoints', false, 100)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" />
+                      </div>
                     )}
+                    {hardProfileSlugs.some((tc: any) => tc.MaTieuChi === 'eth_hard_2') && (
+                      <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg border border-gray-100 bg-white hover:bg-gray-50 transition-all">
+                        <input disabled={isLocked} type="checkbox" checked={!!localData.noViolation} onChange={(e) => handleLocalChange('noViolation', e.target.checked)} className="w-4 h-4 accent-blue-600 rounded" />
+                        <span className="text-[11px] font-bold text-gray-700">Cam kết không vi phạm nội quy</span>
+                      </label>
+                    )}
+                  </>
+                )}
+                {cat === CriterionType.ACADEMIC && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">GPA Hệ 4.0 <span className="text-red-400">*</span></label>
+                    <input disabled={isLocked} type="number" step="0.01" max="4.0" value={localData.gpa === 0 ? '' : localData.gpa} onChange={(e) => handleLocalChange('gpa', e.target.value)} onBlur={() => handleBlur('gpa', true, 4.0)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" />
                   </div>
-                  {subEvs.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {subEvs.map(ev => (
-                        <div key={ev.id} className="p-3 bg-gray-50 border rounded-lg flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-900">{ev.name} {ev.qty ? <span className="text-orange-600 font-black">({ev.qty})</span> : ''}</span>
-                            <span className="text-[8px] font-bold text-gray-400 uppercase">{ev.level} • {ev.status}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[9px] font-black text-blue-700 bg-blue-50 px-2 py-1 rounded">+{ev.points}đ</span>
-                            {!isLocked && <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500 transition-colors"><i className="fas fa-trash-alt text-[10px]"></i></button>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Soft evidence subs (điểm cộng) */}
-        {softSubs.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] border-b-2 border-orange-400 pb-2 inline-block">
-              <i className="fas fa-plus-circle mr-2"></i>Minh chứng tiêu chí cộng điểm
-            </h3>
-            {!isHardMet && (
-              <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-                <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
-                <p className="text-xs text-amber-700 font-medium">Bạn phải ưu tiên chọn <strong>Tải lên</strong> các <span className="text-orange-600 font-black">MINH CHỨNG TIÊU CHÍ CỨNG</span> ở khung phía trên trước. Sau khi tiêu chí cứng báo <span className="text-green-600">✓ Đạt</span>, bạn mới được nộp thêm minh chứng cộng điểm.</p>
+                )}
+                {cat === CriterionType.PHYSICAL && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Điểm Thể dục <span className="text-red-400">*</span></label>
+                    <input disabled={isLocked} type="number" step="0.1" max="10" value={localData.peScore === 0 ? '' : localData.peScore} onChange={(e) => handleLocalChange('peScore', e.target.value)} onBlur={() => handleBlur('peScore', true, 10.0)} className="w-full px-4 py-3 border-2 border-gray-100 rounded-lg focus:border-blue-600 outline-none font-bold text-sm transition-all" />
+                  </div>
+                )}
+                {cat === CriterionType.INTEGRATION && (
+                   <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Ngoại ngữ <span className="text-red-400">*</span></label>
+                       <select disabled={isLocked} value={localData.englishLevel} onChange={(e) => handleLocalChange('englishLevel', e.target.value)} className="w-full px-3 py-3 border-2 border-gray-100 rounded-lg font-bold text-[11px] transition-all focus:border-blue-600 outline-none">
+                         <option value="None">Chưa có</option>
+                         <option value="B1">B1</option>
+                         <option value="B2">B2+</option>
+                       </select>
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">GPA NN <span className="text-red-400">*</span></label>
+                       <input disabled={isLocked} type="number" step="0.01" max="4" value={localData.englishGpa === 0 ? '' : localData.englishGpa} onChange={(e) => handleLocalChange('englishGpa', e.target.value)} onBlur={() => handleBlur('englishGpa', true, 4.0)} className="w-full px-3 py-3 border-2 border-gray-100 rounded-lg font-bold text-sm transition-all focus:border-blue-600 outline-none" />
+                     </div>
+                   </div>
+                )}
               </div>
             )}
-            {isHardMet && softSubs.map(sub => {
-              const subEvs = student.evidences[cat].filter(e => e.subCriterionId === sub.id);
-              return (
-                <div key={sub.id} className={`p-5 border-l-4 transition-all bg-white rounded-lg shadow-sm ${subEvs.length > 0 ? 'border-orange-500' : 'border-gray-200'}`}>
-                  <div className="flex justify-between items-start gap-4">
-                    <div className="flex-1">
-                      <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-orange-500 rounded inline-block mb-1">Cộng</span>
-                      <p className="text-xs font-bold text-gray-800 leading-snug">{sub.description}</p>
+
+            {/* Hard Evidence (Uploads) */}
+            <div className={`space-y-4 ${hardProfileSlugs.length === 0 ? 'md:col-span-2' : ''}`}>
+               {hardUploads.length === 0 && hardProfileSlugs.length === 0 && (
+                 <div className="p-4 bg-gray-50 border border-dashed text-center rounded-lg">
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Không có tiêu chí cứng bổ sung</p>
+                 </div>
+               )}
+               {hardUploads.map((sub: any) => {
+                  const subEvs = student.evidences[cat].filter(e => e.subCriterionId === sub.MaTieuChi);
+                  return (
+                    <div key={sub.MaTieuChi} className={`p-4 bg-white border-2 rounded-lg shadow-sm transition-all ${subEvs.length > 0 ? 'border-blue-100' : 'border-gray-100'}`}>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-blue-600 rounded inline-block mb-1">Bắt buộc</span>
+                          <p className="text-xs font-bold text-gray-800 leading-tight">{sub.MoTa}</p>
+                        </div>
+                        {!isLocked && (
+                          <button 
+                            onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi })} 
+                            className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${subEvs.length > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
+                          >
+                            {subEvs.length > 0 ? <><i className="fas fa-check-circle mr-1"></i>Đã nộp</> : <><i className="fas fa-upload mr-1"></i>Tải lên</>}
+                          </button>
+                        )}
+                      </div>
+                      {subEvs.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {subEvs.map(ev => (
+                            <div key={ev.id} className="p-2.5 bg-gray-50 border rounded-lg flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-gray-900 truncate max-w-[200px]">{ev.name}</span>
+                              <div className="flex items-center gap-2">
+                                {!isLocked && (
+                                  <>
+                                    <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-400 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
+                                    <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-400 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {!isLocked && (
-                      <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.description })} className="px-4 py-2 bg-orange-50 text-orange-700 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-100 transition-all whitespace-nowrap">
-                        <i className="fas fa-upload mr-1.5"></i>Tải lên
-                      </button>
+                  );
+               })}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: OPTIONAL CRITERIA (Soft/Points) */}
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-black text-orange-600 uppercase tracking-[0.2em] border-b-2 border-orange-400 pb-2 inline-block">
+            <i className="fas fa-plus-circle mr-2"></i>Tiêu chí cộng điểm (Tùy chọn)
+          </h3>
+          
+          {!isHardMet && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
+              <p className="text-xs text-amber-700 font-medium italic">Bạn cần đạt các <span className="text-blue-600 font-black uppercase">Tiêu chí cứng</span> bên trên trước khi có thể nộp minh chứng cộng điểm cho mục này.</p>
+            </div>
+          )}
+
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${!isHardMet ? 'opacity-40 pointer-events-none' : ''}`}>
+            {softSubsRaw.length === 0 ? (
+               <div className="md:col-span-2 text-center py-6 bg-gray-50 border-2 border-dashed border-gray-100 rounded-lg">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Không có tiêu chí cộng điểm nào</p>
+               </div>
+            ) : (
+              softSubsRaw.map((sub: any) => {
+                const subEvs = student.evidences[cat].filter(e => e.subCriterionId === sub.MaTieuChi);
+                return (
+                  <div key={sub.MaTieuChi} className={`p-4 border-2 transition-all bg-white rounded-lg shadow-sm ${subEvs.length > 0 ? 'border-orange-100' : 'border-gray-100'}`}>
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-orange-500 rounded inline-block mb-1">Cộng</span>
+                        <p className="text-[11px] font-bold text-gray-800 leading-snug">{sub.MoTa}</p>
+                      </div>
+                      {!isLocked && (
+                        <button 
+                          onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi })} 
+                          className={`px-3 py-1.5 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${subEvs.length > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`}
+                        >
+                          {subEvs.length > 0 ? <><i className="fas fa-check-circle mr-1"></i>Đã nộp</> : <><i className="fas fa-upload mr-1"></i>Tải lên</>}
+                        </button>
+                      )}
+                    </div>
+                    {subEvs.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {subEvs.map(ev => (
+                          <div key={ev.id} className="p-2.5 bg-gray-50 border rounded-lg flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-gray-900">{ev.name} {ev.qty ? <span className="text-orange-600 font-black">({ev.qty})</span> : ''}</span>
+                              <span className="text-[9px] font-black text-orange-600 mt-0.5">+{ev.points}đ</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {!isLocked && (
+                                <>
+                                  <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-300 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
+                                  <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  {subEvs.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      {subEvs.map(ev => (
-                        <div key={ev.id} className="p-3 bg-gray-50 border rounded-lg flex items-center justify-between">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] font-bold text-gray-900">{ev.name} {ev.qty ? <span className="text-orange-600 font-black">({ev.qty})</span> : ''}</span>
-                            <span className="text-[8px] font-bold text-gray-400 uppercase">{ev.level} • {ev.status}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded">+{ev.points}đ</span>
-                            {!isLocked && <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500 transition-colors"><i className="fas fa-trash-alt text-[10px]"></i></button>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
-        )}
-
-        {hardSubs.length === 0 && softSubs.length === 0 && (
-          <div className="text-center py-16 bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg">
-            <i className="fas fa-check-circle text-green-400 text-3xl mb-4"></i>
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Tiêu chí này được xác nhận qua dữ liệu đã nhập ở Bước 1</p>
-          </div>
-        )}
+        </div>
       </div>
     );
   };
@@ -726,7 +821,6 @@ const StudentDashboard: React.FC<{
 
   // ====== RENDER CHÍNH ======
   const renderCurrentStep = () => {
-    if (isHardCriteriaStep) return renderHardCriteriaPage();
     if (isReviewStep) return renderSubmitStep();
     return renderEvidencePage(currentStep as CriterionType);
   };
@@ -736,8 +830,16 @@ const StudentDashboard: React.FC<{
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b pb-8">
         <div className="flex-1">
-          <h1 className="text-3xl font-black text-[#0054a6] uppercase font-formal tracking-tighter">{student.fullName}</h1>
-          <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1 italic">Mã sinh viên: {student.studentId} • {student.faculty}</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-black text-[#0054a6] uppercase font-formal tracking-tighter">{student.fullName}</h1>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1 italic">Mã sinh viên: {student.studentId} • {student.faculty}</p>
+            </div>
+            <div className={`text-right hidden sm:block px-5 py-3 rounded-xl shadow-sm border ${allHardMet ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-100'}`}>
+              <p className={`text-[8px] font-black uppercase tracking-[0.2em] mb-0.5 ${allHardMet ? 'text-green-800' : 'text-blue-900'}`}>Tiêu chí Đạt</p>
+              <p className={`text-2xl font-black font-formal ${allHardMet ? 'text-green-700' : 'text-blue-900'}`}>{metCount}<span className={`text-sm ${allHardMet ? 'text-green-500' : 'text-blue-400/80'}`}> / 5</span></p>
+            </div>
+          </div>
           {/* Step progress */}
           <div className="flex items-center gap-1.5 mt-6">
             {STEPS.map((s, idx) => (
@@ -785,7 +887,30 @@ const StudentDashboard: React.FC<{
       {/* Evidence Upload Modal */}
       {addingTo && !isLocked && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-blue-950/90 backdrop-blur-sm p-4 animate-fade-in">
-          <EvidenceForm criterionType={addingTo.type} isHard={addingTo.isHard} subCriterionName={addingTo.subName} onAdd={(ev) => { addEvidence(addingTo.type, { ...ev, points: POINT_MATRIX[ev.level][ev.type] }); setAddingTo(null); }} onCancel={() => setAddingTo(null)} />
+          <EvidenceForm 
+            criterionType={addingTo.type} 
+            isHard={addingTo.isHard} 
+            subCriterionName={addingTo.subName}
+            subCriterionId={addingTo.subId}
+            initialData={addingTo.editingEvidence}
+            criteriaGroups={criteriaGroups}
+            onAdd={handleSaveEvidence} 
+            onCancel={() => setAddingTo(null)} 
+          />
+        </div>
+      )}
+      {/* Success Modal Overlay */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-blue-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white p-12 rounded-3xl shadow-2xl border-2 border-green-500 scale-110 animate-scale-up text-center space-y-6">
+            <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-4xl shadow-inner">
+              <i className="fas fa-check"></i>
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-blue-900 uppercase tracking-tight">GỬI THÀNH CÔNG!</h2>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-2">Phản hồi của bạn đã được gửi đến Admin xử lý.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

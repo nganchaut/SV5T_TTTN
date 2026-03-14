@@ -7,7 +7,7 @@ class BaiVietSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BaiViet
-        fields = ['id', 'TieuDe', 'NoiDung', 'NgayDang',
+        fields = ['id', 'TieuDe', 'NoiDung', 'HinhAnh', 'NgayDang',
                   'TrangThai', 'TrangThaiDisplay', 'NgayTao']
         read_only_fields = ['id', 'NgayDang', 'NgayTao']
 

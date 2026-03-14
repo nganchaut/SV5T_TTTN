@@ -15,7 +15,11 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
       if (xm.TruongDuLieu && verifications[xm.TruongDuLieu as keyof StudentProfile['verifications']]) {
         verifications[xm.TruongDuLieu as keyof StudentProfile['verifications']] = {
           status: xm.TrangThai,
-          feedback: xm.PhanHoi || ''
+          feedback: xm.PhanHoiAdmin || xm.PhanHoi || '', // Fallback to old field if any
+          adminFeedback: xm.PhanHoiAdmin || '',
+          explanation: xm.GiaiTrinhSV || '',
+          fileUrl: xm.FileUrl || '',
+          fileName: xm.TenFile || ''
         };
       }
     });

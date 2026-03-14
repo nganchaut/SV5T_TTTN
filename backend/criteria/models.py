@@ -40,6 +40,16 @@ class TieuChi(models.Model):
     def __str__(self):
         return f"[{self.NhomTieuChi.TenNhom}] {self.MoTa[:60]}"
 
+    def save(self, *args, **kwargs):
+        if not self.MaTieuChi:
+            from django.utils.text import slugify
+            import uuid
+            base_slug = slugify(self.MoTa)[:40]
+            if not base_slug:
+                base_slug = 'tieuchi'
+            self.MaTieuChi = f"{base_slug}-{str(uuid.uuid4())[:6]}"
+        super().save(*args, **kwargs)
+
 
 class DiemTheoCapDo(models.Model):
     CAP_DO_CHOICES = [

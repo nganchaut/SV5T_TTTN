@@ -10,6 +10,7 @@ from .serializers import (
 )
 from accounts.permissions import IsAdmin, IsSinhVien
 from students.models import SinhVien
+from students.serializers import SinhVienProfileSerializer
 
 
 class MinhChungListView(APIView):
@@ -98,17 +99,26 @@ class MinhChungExplainView(APIView):
         except (SinhVien.DoesNotExist, MinhChung.DoesNotExist):
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if mc.TrangThai != 'NeedsExplanation':
+        if mc.TrangThai not in ['NeedsExplanation', 'Pending']:
             return Response({'detail': 'Minh chứng này không cần giải trình.'}, status=status.HTTP_400_BAD_REQUEST)
 
         giai_trinh = request.data.get('GiaiTrinhSV', '')
-        if not giai_trinh:
-            return Response({'detail': 'Vui lòng nhập nội dung giải trình.'}, status=status.HTTP_400_BAD_REQUEST)
+        new_file = request.data.get('DuongDanFile')
 
-        mc.GiaiTrinhSV = giai_trinh
+        if not giai_trinh and not new_file:
+            return Response({'detail': 'Vui lòng nhập nội dung giải trình hoặc đính kèm file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if giai_trinh:
+            mc.GiaiTrinhSV = giai_trinh
+        if new_file:
+            # Nếu có file mới thì ghi đè file cũ
+            mc.DuongDanFile = new_file
+            if hasattr(new_file, 'name'):
+                mc.TenFile = new_file.name.split('/')[-1]
+
         mc.TrangThai = 'Pending'
         mc.save()
-        return Response({'detail': 'Đã gửi giải trình. Minh chứng chờ duyệt lại.'})
+        return Response(SinhVienProfileSerializer(mc.SinhVien).data)
 
 
 # ── Admin Evidence Views ─────────────────────────

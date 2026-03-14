@@ -95,8 +95,11 @@ class XacMinh(models.Model):
     )
     TruongDuLieu = models.CharField(max_length=50, choices=TRUONG_CHOICES)
     TrangThai = models.CharField(max_length=30, choices=TRANG_THAI_CHOICES, default='Pending')
-    PhanHoi = models.CharField(max_length=500, blank=True, null=True)
+    PhanHoiAdmin = models.CharField(max_length=500, blank=True, null=True)
+    GiaiTrinhSV = models.CharField(max_length=1000, blank=True, null=True)
     NgayCapNhat = models.DateTimeField(auto_now=True)
+    DuongDanFile = models.FileField(upload_to='xac_minh/', blank=True, null=True)
+    TenFile = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
         db_table = 'XacMinh'

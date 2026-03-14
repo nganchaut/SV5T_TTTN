@@ -14,8 +14,10 @@ const App: React.FC = () => {
 
   const [userRole, setUserRole] = useState<'student' | 'admin' | 'guest'>('guest');
   const [faces, setFaces] = useState<FeaturedFace[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string>('');
+  const [criteriaGroups, setCriteriaGroups] = useState<any[]>([]);
   
   // To avoid crash if data is loading
   const fallbackStudent: StudentProfile = {
@@ -30,9 +32,11 @@ const App: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
 
-  // Initial load: Faces are public
+  // Initial load: Faces and Criteria are public
   useEffect(() => {
     publicService.getFaces().then(setFaces).catch(console.error);
+    publicService.getCriteria().then(setCriteriaGroups).catch(console.error);
+    publicService.getPosts().then(setPosts).catch(console.error);
   }, []);
 
   // Sync state on mount and route changes if necessary
@@ -129,6 +133,37 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateEvidence = async (type: CriterionType, id: string, updatedEv: Evidence) => {
+    const currentUser = authService.getCurrentUser();
+    const originalStudent = students.find(s => s.id === student.id);
+    const originalEvidences = originalStudent?.evidences[type] || [];
+    const originalEvidence = originalEvidences.find(e => e.id === id);
+
+    // Optimistic UI: update evidence immediately
+    setStudents(prev => prev.map(s => s.id === student.id ? {
+      ...s,
+      evidences: {
+        ...s.evidences,
+        [type]: (s.evidences[type] || []).map(e => e.id === id ? updatedEv : e)
+      }
+    } : s));
+
+    try {
+      const updatedProfile = await studentService.updateEvidence(type, id, updatedEv, currentUser?.studentId);
+      setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
+    } catch (err) {
+      console.error('updateEvidence failed:', err);
+      // Rollback on failure
+      setStudents(prev => prev.map(s => s.id === student.id ? {
+        ...s,
+        evidences: {
+          ...s.evidences,
+          [type]: originalEvidences
+        }
+      } : s));
+    }
+  };
+
   const removeEvidence = async (type: CriterionType, id: string) => {
     const currentUser = authService.getCurrentUser();
     // Optimistic UI: remove evidence immediately
@@ -157,35 +192,34 @@ const App: React.FC = () => {
     }).catch(console.error);
   };
 
-  const updateEvidenceExplanation = async (type: CriterionType, id: string, explanation: string) => {
+  const updateEvidenceExplanation = async (type: CriterionType, id: string, explanation: string, file?: File) => {
     const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainEvidence(type, id, explanation, currentUser?.studentId);
-    setStudents([updatedProfile]);
+    const updatedProfile = await studentService.explainEvidence(type, id, explanation, file, currentUser?.studentId);
+    setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
   };
 
-  const updateFieldExplanation = async (field: keyof StudentProfile['verifications'], explanation: string) => {
+  const updateFieldExplanation = async (field: keyof StudentProfile['verifications'], explanation: string, file?: File) => {
     const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainField(field, explanation, currentUser?.studentId);
-    setStudents([updatedProfile]);
+    const updatedProfile = await studentService.explainField(field, explanation, file, currentUser?.studentId);
+    setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
   };
 
   const handleResubmitExplanation = async () => {
-    if (window.confirm("Bạn xác nhận gửi phản hồi giải trình?")) {
-      const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
-      setStudents([updatedProfile]);
-      alert("Đã gửi phản hồi giải trình thành công!");
-    }
+    const currentUser = authService.getCurrentUser();
+    const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
+    setStudents([updatedProfile]);
   };
 
   const handleSubmit = async () => {
-    if (Object.values(CriterionType).every(cat => checkHardMet(cat, student))) {
+    try {
       const currentUser = authService.getCurrentUser();
       const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
       setStudents([updatedProfile]);
-      alert('Hồ sơ đã gửi thành công!');
-    } else {
-      alert('Bạn chưa đạt đủ các chuẩn cứng cơ bản.');
+      alert('Hồ sơ của bạn đã được nộp thành công!');
+    } catch (err: any) {
+      console.error("Submit Error:", err);
+      const msg = err.response?.data?.detail || "Bạn chưa đạt đủ các chuẩn cứng cơ bản để nộp hồ sơ.";
+      alert(msg);
     }
   };
 
@@ -204,18 +238,30 @@ const App: React.FC = () => {
   };
 
   const handleAdminUpdateStatus = async (status: StudentProfile['status'], feedback?: string) => {
-    const updated = await adminService.updateProfileStatus(student.id, status, feedback);
-    updateStudentInAdminList(updated);
+    try {
+      const updated = await adminService.updateProfileStatus(student.id, status, feedback);
+      updateStudentInAdminList(updated);
+    } catch (err: any) {
+      alert("Lỗi cập nhật trạng thái hồ sơ: " + (err.response?.data?.detail || err.message));
+    }
   };
 
   const handleAdminUpdateEvidenceStatus = async (type: CriterionType, id: string, status: Evidence['status'], feedback?: string) => {
-    const updated = await adminService.updateEvidenceStatus(student.id, id, type, status, feedback);
-    updateStudentInAdminList(updated);
+    try {
+      const updated = await adminService.updateEvidenceStatus(student.id, id, type, status, feedback);
+      updateStudentInAdminList(updated);
+    } catch (err: any) {
+      alert("Lỗi cập nhật trạng thái minh chứng: " + (err.response?.data?.detail || err.message));
+    }
   };
 
   const handleUpdateFieldVerification = async (field: keyof StudentProfile['verifications'], status: FieldVerification['status'], feedback?: string) => {
-    const updated = await adminService.updateFieldStatus(student.id, field, status, feedback);
-    updateStudentInAdminList(updated);
+    try {
+      const updated = await adminService.updateFieldStatus(student.id, field, status, feedback);
+      updateStudentInAdminList(updated);
+    } catch (err: any) {
+      alert("Lỗi cập nhật trạng thái trường xác minh: " + (err.response?.data?.detail || err.message));
+    }
   };
 
   const handleAddFace = async (face: Omit<FeaturedFace, 'id'>) => {
@@ -231,6 +277,21 @@ const App: React.FC = () => {
   const handleDeleteFace = async (id: string) => {
     await adminService.deleteFace(id);
     setFaces(prev => prev.filter(f => f.id !== id));
+  };
+
+  const handleAddPost = async (post: { title: string, content: string, status: string, imageFile?: File }) => {
+    const newPost = await adminService.addPost(post);
+    setPosts(prev => [newPost, ...prev]);
+  };
+
+  const handleUpdatePost = async (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => {
+    const updatedPost = await adminService.updatePost(id, post);
+    setPosts(prev => prev.map(p => p.id === id ? updatedPost : p));
+  };
+
+  const handleDeletePost = async (id: string) => {
+    await adminService.deletePost(id);
+    setPosts(prev => prev.filter(p => p.id !== id));
   };
 
 
@@ -249,6 +310,7 @@ const App: React.FC = () => {
     else if (page === 'login') navigate('/login');
     else if (page === 'profile') navigate('/profile');
     else if (page === 'admin') navigate('/admin');
+    else navigate(page);
   };
 
   if (loading) {
@@ -265,12 +327,14 @@ const App: React.FC = () => {
       <AppRoutes
         userRole={userRole}
         faces={faces}
+        posts={posts}
         student={student}
         students={students}
         onLogin={handleLogin}
         onNavigate={handleNavigate}
         addEvidence={addEvidence}
         removeEvidence={removeEvidence}
+        updateEvidence={handleUpdateEvidence}
         updateProfile={updateProfile}
         updateEvidenceExplanation={updateEvidenceExplanation}
         updateFieldExplanation={updateFieldExplanation}
@@ -278,12 +342,17 @@ const App: React.FC = () => {
         onResubmit={handleResubmitExplanation}
         onUnsubmit={handleUnsubmit}
         setActiveStudentId={setActiveStudentId}
+        criteriaGroups={criteriaGroups}
+        setCriteriaGroups={setCriteriaGroups}
         handleAdminUpdateStatus={handleAdminUpdateStatus}
         handleAdminUpdateEvidenceStatus={handleAdminUpdateEvidenceStatus}
         handleUpdateFieldVerification={handleUpdateFieldVerification}
         handleAddFace={handleAddFace}
         handleUpdateFace={handleUpdateFace}
         handleDeleteFace={handleDeleteFace}
+        onAddPost={handleAddPost}
+        onUpdatePost={handleUpdatePost}
+        onDeletePost={handleDeletePost}
       />
     </Layout>
   );

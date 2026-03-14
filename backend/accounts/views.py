@@ -83,13 +83,9 @@ class TaiKhoanDetailView(APIView):
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(TaiKhoanSerializer(obj).data)
 
-    def patch(self, request, pk):
+    def delete(self, request, pk):
         obj = self.get_object(pk)
         if not obj:
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
-        # Chỉ cho phép thay đổi TrangThai
-        trang_thai = request.data.get('TrangThai')
-        if trang_thai in ['Active', 'Inactive']:
-            obj.TrangThai = trang_thai
-            obj.save()
-        return Response(TaiKhoanSerializer(obj).data)
+        obj.delete()
+        return Response({'detail': 'Đã xóa tài khoản.'}, status=status.HTTP_204_NO_CONTENT)

@@ -50,16 +50,45 @@ class TaiKhoanSerializer(serializers.ModelSerializer):
 
 class TaiKhoanCreateSerializer(serializers.ModelSerializer):
     MatKhau = serializers.CharField(write_only=True)
+    HoTen = serializers.CharField(required=True)
+    Email = serializers.EmailField(required=False, allow_blank=True)
+    Lop = serializers.CharField(required=False, allow_blank=True)
+    Khoa = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = TaiKhoan
-        fields = ['TenDangNhap', 'MatKhau', 'VaiTro']
+        fields = ['TenDangNhap', 'MatKhau', 'VaiTro', 'HoTen', 'Email', 'Lop', 'Khoa']
 
     def create(self, validated_data):
         password = validated_data.pop('MatKhau')
+        ho_ten = validated_data.pop('HoTen')
+        email = validated_data.pop('Email', '')
+        lop = validated_data.pop('Lop', '')
+        khoa = validated_data.pop('Khoa', '')
+        
+        vai_tro = validated_data.get('VaiTro', 'SinhVien')
+        
         user = TaiKhoan(**validated_data)
         user.set_password(password)
         user.save()
+        
+        if vai_tro == 'SinhVien':
+            from students.models import SinhVien
+            SinhVien.objects.create(
+                TaiKhoan=user,
+                HoTen=ho_ten,
+                MaSV=user.TenDangNhap,
+                Lop=lop,
+                Khoa=khoa
+            )
+        else:
+            if not email:
+                email = f"{user.TenDangNhap}@due.udn.vn"
+            NguoiDung.objects.create(
+                TaiKhoan=user,
+                HoTen=ho_ten,
+                Email=email
+            )
         return user
 
 

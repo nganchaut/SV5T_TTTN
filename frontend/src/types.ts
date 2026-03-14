@@ -51,7 +51,11 @@ export interface Evidence {
 
 export interface FieldVerification {
   status: 'Pending' | 'Approved' | 'Rejected' | 'NeedsExplanation';
-  feedback?: string;
+  feedback?: string; // Legacy
+  adminFeedback?: string;
+  explanation?: string;
+  fileUrl?: string;
+  fileName?: string;
 }
 
 export interface StudentProfile {
@@ -86,4 +90,5 @@ export interface FeaturedFace {
   achievement: string;
   content: string;
   image: string;
+  imageFile?: File;
 }

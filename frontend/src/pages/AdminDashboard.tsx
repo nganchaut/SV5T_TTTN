@@ -14,8 +14,14 @@ const AdminDashboard: React.FC<{
   faces: FeaturedFace[],
   onAddFace: (face: Omit<FeaturedFace, 'id'>) => void,
   onUpdateFace: (id: string, face: Partial<FeaturedFace>) => void,
-  onDeleteFace: (id: string) => void
-}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace }) => {
+  onDeleteFace: (id: string) => void,
+  criteriaGroups: any[],
+  setCriteriaGroups: React.Dispatch<React.SetStateAction<any[]>>,
+  posts: any[],
+  onAddPost: (post: { title: string, content: string, status: string, imageFile?: File }) => void,
+  onUpdatePost: (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => void,
+  onDeletePost: (id: string) => void
+}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace, criteriaGroups, setCriteriaGroups, posts, onAddPost, onUpdatePost, onDeletePost }) => {
   const navigate = useNavigate();
   const { activeTab: urlTab } = useParams<{ activeTab: string }>();
   const activeTab = urlTab || 'profiles';
@@ -39,25 +45,63 @@ const AdminDashboard: React.FC<{
   const LEVELS = ['Cấp Khoa/CLB', 'Cấp Trường/Phường/Xã', 'Cấp ĐHĐN', 'Cấp Tỉnh/Thành phố', 'Cấp Trung ương'];
   const LEVEL_KEYS = ['khoa', 'truong', 'dhdn', 'tinh', 'tw'];
   type CriterionItem = { id: string; description: string; isHard: boolean; points?: number; levelPoints: Record<string, number>; hasDecisionNumber: boolean };
-  const [managedCriteria, setManagedCriteria] = useState(() => {
-    const init: Record<string, CriterionItem[]> = {};
-    Object.entries(SUB_CRITERIA).forEach(([cat, subs]) => {
-      init[cat] = subs.map(s => ({
-        ...s,
-        levelPoints: { khoa: 0.1, truong: 0.2, dhdn: 0.3, tinh: 0.4, tw: 0.5 },
-        hasDecisionNumber: false
-      }));
-    });
-    return init;
-  });
-  const [managedUsers, setManagedUsers] = useState<any[]>([]);
-  const [managedPosts, setManagedPosts] = useState<any[]>([]);
+  const [managedCriteria, setManagedCriteria] = useState<Record<string, CriterionItem[]>>({});
 
   useEffect(() => {
-    if (activeTab === 'posts') {
-      adminService.getPosts().then(setManagedPosts).catch(console.error);
-    } else if (activeTab === 'users') {
-      adminService.getUsers().then(setManagedUsers).catch(console.error);
+    const init: Record<string, CriterionItem[]> = {};
+    criteriaGroups.forEach(group => {
+      init[group.TenNhom] = group.tieu_chi.map((tc: any) => {
+        const lp: Record<string, number> = { khoa: 0.1, truong: 0.2, dhdn: 0.3, tinh: 0.4, tw: 0.5 };
+        if (tc.diem_cap_do && tc.diem_cap_do.length > 0) {
+          tc.diem_cap_do.forEach((d: any) => {
+            const levelKey = d.CapDo === 'Cấp Khoa/CLB' ? 'khoa' :
+                             d.CapDo === 'Cấp Trường/Phường/Xã' ? 'truong' :
+                             d.CapDo === 'Cấp ĐHĐN' ? 'dhdn' :
+                             d.CapDo === 'Cấp Tỉnh/Thành phố' ? 'tinh' :
+                             d.CapDo === 'Cấp Trung ương' ? 'tw' : null;
+            if (levelKey) lp[levelKey] = Number(d.Diem);
+          });
+        }
+
+        return {
+          id: String(tc.id),
+          description: tc.MoTa,
+          isHard: tc.LoaiTieuChi === 'Cung',
+          points: Number(tc.Diem || 0),
+          levelPoints: lp,
+          hasDecisionNumber: tc.CoSoQuyetDinh
+        };
+      });
+    });
+    setManagedCriteria(init);
+  }, [criteriaGroups]);
+
+  const [managedUsers, setManagedUsers] = useState<any[]>([]);
+  const [articleForm, setArticleForm] = useState<{ mode: 'add' | 'edit', id?: string, title: string, content: string, status: string, image: string, imageFile?: File } | null>(null);
+
+  const [userForm, setUserForm] = useState<{
+    show: boolean;
+    data: {
+      TenDangNhap: string;
+      MatKhau: string;
+      HoTen: string;
+      VaiTro: string;
+      Email: string;
+      Lop: string;
+      Khoa: string;
+    }
+  }>({
+    show: false,
+    data: { TenDangNhap: '', MatKhau: '', HoTen: '', VaiTro: 'SinhVien', Email: '', Lop: '', Khoa: '' }
+  });
+
+  const refreshUsers = () => {
+    adminService.getUsers().then(setManagedUsers).catch(console.error);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      refreshUsers();
     }
   }, [activeTab]);
 
@@ -86,25 +130,22 @@ const AdminDashboard: React.FC<{
   };
 
   // Featured Faces Management
-  const [faceForm, setFaceForm] = useState<{ mode: 'add' | 'edit', id?: string, name: string, achievement: string, content: string, image: string } | null>(null);
+  const [faceForm, setFaceForm] = useState<{ mode: 'add' | 'edit', id?: string, name: string, achievement: string, content: string, image: string, imageFile?: File } | null>(null);
 
   const handleSaveFace = () => {
     if (!faceForm) return;
+    const faceData = {
+      name: faceForm.name,
+      achievement: faceForm.achievement,
+      content: faceForm.content,
+      image: faceForm.image,
+      imageFile: faceForm.imageFile
+    };
+
     if (faceForm.mode === 'add') {
-      const newFace: Omit<FeaturedFace, 'id'> = {
-        name: faceForm.name,
-        achievement: faceForm.achievement,
-        content: faceForm.content,
-        image: faceForm.image
-      };
-      onAddFace(newFace);
+      onAddFace(faceData);
     } else if (faceForm.id) {
-      onUpdateFace(faceForm.id, {
-        name: faceForm.name,
-        achievement: faceForm.achievement,
-        content: faceForm.content,
-        image: faceForm.image
-      });
+      onUpdateFace(faceForm.id, faceData);
     }
     setFaceForm(null);
   };
@@ -148,10 +189,34 @@ const AdminDashboard: React.FC<{
               <textarea value={faceForm.content} onChange={e => setFaceForm({ ...faceForm, content: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-medium h-24" placeholder="VD: Gương mặt sinh viên xuất sắc tiêu biểu của nhà trường." />
             </div>
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">URL Hình ảnh</label>
-              <div className="flex gap-4">
-                <input type="text" value={faceForm.image} onChange={e => setFaceForm({ ...faceForm, image: e.target.value })} className="flex-1 px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-xs" placeholder="https://..." />
-                {faceForm.image && <img src={faceForm.image} className="w-12 h-12 rounded object-cover border" alt="Preview" />}
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Hình ảnh vinh danh</label>
+              <div className="flex gap-4 items-center">
+                <label className="flex-1 cursor-pointer">
+                  <div className="px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-900 hover:bg-white transition-all flex items-center justify-center gap-3">
+                    <i className="fas fa-cloud-upload-alt text-gray-400"></i>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{faceForm.imageFile ? faceForm.imageFile.name : 'Chọn ảnh từ máy tính'}</span>
+                  </div>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setFaceForm({ ...faceForm, image: reader.result as string, imageFile: file });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }} 
+                  />
+                </label>
+                {(faceForm.image || faceForm.imageFile) && (
+                  <div className="relative group w-14 h-14 bg-gray-100 rounded-xl border-2 border-blue-900/10 overflow-hidden">
+                    <img src={faceForm.image} className="w-full h-full object-cover" alt="Preview" />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -394,62 +459,126 @@ const AdminDashboard: React.FC<{
     if (!sub) return;
     setCriteriaForm({ mode: 'edit', cat, id, description: sub.description, isHard: sub.isHard, hasDecisionNumber: sub.hasDecisionNumber, levelPoints: { ...sub.levelPoints } });
   };
-  const saveCriteriaForm = () => {
+  const saveCriteriaForm = async () => {
     if (!criteriaForm || !criteriaForm.description.trim()) return;
-    if (criteriaForm.mode === 'add') {
-      setManagedCriteria(prev => ({
-        ...prev, [criteriaForm.cat]: [...(prev[criteriaForm.cat] || []), {
-          id: `new_${Date.now()}`, description: criteriaForm.description, isHard: criteriaForm.isHard,
-          levelPoints: criteriaForm.levelPoints, hasDecisionNumber: criteriaForm.hasDecisionNumber
-        }]
-      }));
-    } else {
-      setManagedCriteria(prev => ({ ...prev, [criteriaForm.cat]: prev[criteriaForm.cat].map(s => s.id === criteriaForm.id ? { ...s, description: criteriaForm.description, isHard: criteriaForm.isHard, hasDecisionNumber: criteriaForm.hasDecisionNumber, levelPoints: criteriaForm.levelPoints } : s) }));
+    
+    try {
+      const group = criteriaGroups.find(g => g.TenNhom === criteriaForm.cat);
+      if (!group) throw new Error("Category not found on backend");
+
+      const payload = {
+        NhomTieuChi: group.id,
+        MoTa: criteriaForm.description,
+        LoaiTieuChi: criteriaForm.isHard ? 'Cung' : 'Cong',
+        Diem: 0, // Points are usually per level, but model has a base Diem
+        CoSoQuyetDinh: criteriaForm.hasDecisionNumber,
+        SoLuongToiThieu: 1,
+        ThuTu: 1
+      };
+
+      if (criteriaForm.mode === 'add') {
+        const newTc = await adminService.addTieuChi(payload);
+        // Also update scores
+        for (const [key, val] of Object.entries(criteriaForm.levelPoints)) {
+          const capDo = key === 'khoa' ? 'Cấp Khoa/CLB' :
+                        key === 'truong' ? 'Cấp Trường/Phường/Xã' :
+                        key === 'dhdn' ? 'Cấp ĐHĐN' :
+                        key === 'tinh' ? 'Cấp Tỉnh/Thành phố' : 'Cấp Trung ương';
+          await adminService.updateTieuChiScore(newTc.id, { CapDo: capDo, Diem: val as number });
+        }
+      } else if (criteriaForm.id) {
+        await adminService.updateTieuChi(Number(criteriaForm.id), payload);
+        for (const [key, val] of Object.entries(criteriaForm.levelPoints)) {
+          const capDo = key === 'khoa' ? 'Cấp Khoa/CLB' :
+                        key === 'truong' ? 'Cấp Trường/Phường/Xã' :
+                        key === 'dhdn' ? 'Cấp ĐHĐN' :
+                        key === 'tinh' ? 'Cấp Tỉnh/Thành phố' : 'Cấp Trung ương';
+          await adminService.updateTieuChiScore(Number(criteriaForm.id), { CapDo: capDo, Diem: val as number });
+        }
+      }
+
+      // Refresh global criteria
+      const updatedGroups = await adminService.getCriteriaGroups();
+      setCriteriaGroups(updatedGroups);
+      setCriteriaForm(null);
+      window.alert('✅ Đã cập nhật tiêu chí thành công!');
+    } catch (error) {
+      console.error(error);
+      window.alert('❌ Lỗi khi cập nhật tiêu chí!');
     }
-    setCriteriaForm(null);
   };
-  const handleDeleteCriterion = (cat: string, id: string) => {
+
+  const handleDeleteCriterion = async (cat: string, id: string) => {
     if (!window.confirm('Xác nhận xóa tiêu chí này?')) return;
-    setManagedCriteria(prev => ({ ...prev, [cat]: prev[cat].filter(s => s.id !== id) }));
+    try {
+      await adminService.deleteTieuChi(Number(id));
+      const updatedGroups = await adminService.getCriteriaGroups();
+      setCriteriaGroups(updatedGroups);
+      window.alert('✅ Đã xóa tiêu chí!');
+    } catch (error) {
+      window.alert('❌ Lỗi khi xóa tiêu chí!');
+    }
   };
   const handleAddUser = () => {
-    const name = window.prompt('Họ tên người dùng:'); if (!name) return;
-    const email = window.prompt('Email:'); if (!email) return;
-    const role = window.prompt('Vai trò (Admin / Thư ký / Thẩm định viên):') || 'Thẩm định viên';
-    setManagedUsers(prev => [...prev, { id: `u_${Date.now()}`, name, email, role }]);
-    window.alert('✅ Đã thêm người dùng!');
+    setUserForm({
+      show: true,
+      data: { TenDangNhap: '', MatKhau: '', HoTen: '', VaiTro: 'SinhVien', Email: '', Lop: '', Khoa: '' }
+    });
   };
-  const handleDeleteUser = (id: string) => {
-    if (!window.confirm('Xác nhận xóa người dùng này?')) return;
-    setManagedUsers(prev => prev.filter(u => u.id !== id));
-  };
-  const handleAddPost = async () => {
-    const title = window.prompt('Tiêu đề bài viết:'); if (!title) return;
+
+  const handleSaveUser = async () => {
+    const { data } = userForm;
+    if (!data.TenDangNhap || !data.MatKhau || !data.HoTen) {
+      alert("Vui lòng nhập đầy đủ Tên đăng nhập, Mật khẩu và Họ tên.");
+      return;
+    }
+
     try {
-      const newPost = await adminService.addPost({ title, status: 'draft' });
-      setManagedPosts(prev => [newPost, ...prev]);
-      window.alert('✅ Đã thêm bài viết!');
-    } catch (e) {
-      alert("Thêm thất bại!");
+      await adminService.addUser(data);
+      window.alert('✅ Đã thêm người dùng thành công!');
+      setUserForm({ ...userForm, show: false });
+      refreshUsers();
+    } catch (e: any) {
+      console.error(e);
+      const msg = e.response?.data?.detail || JSON.stringify(e.response?.data);
+      alert("Lỗi khi thêm người dùng: " + (msg || "Lỗi không xác định"));
     }
   };
-  const handleEditPost = async (id: string, currentStatus: string) => {
-    const post = managedPosts.find(p => p.id === id); if (!post) return;
-    const title = window.prompt('Chỉnh sửa tiêu đề:', post.title); if (!title) return;
+
+  const handleDeleteUser = async (id: string) => {
+    if (!window.confirm('Xác nhận xóa người dùng này?')) return;
     try {
-      // Toggle string 'draft' / 'published' if user wants, but here we just update title
-      const updated = await adminService.updatePost(id, { title, status: currentStatus });
-      setManagedPosts(prev => prev.map(p => p.id === id ? updated : p));
-      window.alert('✅ Đã cập nhật bài viết!');
+      await adminService.deleteUser(id);
+      window.alert('✅ Đã xóa người dùng!');
+      refreshUsers();
+    } catch (e: any) {
+      alert("Lỗi khi xóa người dùng!");
+    }
+  };
+  const handleAddPost = () => {
+    setArticleForm({ mode: 'add', title: '', content: '', status: 'published', image: '' });
+  };
+  const handleEditPost = (post: any) => {
+    setArticleForm({ mode: 'edit', id: post.id, title: post.title, content: post.NoiDung, status: post.status, image: post.HinhAnh || '' });
+  };
+  const handleSaveArticle = async () => {
+    if (!articleForm) return;
+    try {
+      if (articleForm.mode === 'add') {
+        await onAddPost({ title: articleForm.title, content: articleForm.content, status: articleForm.status, imageFile: articleForm.imageFile });
+      } else if (articleForm.id) {
+        await onUpdatePost(articleForm.id, { title: articleForm.title, content: articleForm.content, status: articleForm.status, imageFile: articleForm.imageFile });
+      }
+      setArticleForm(null);
+      window.alert('✅ Lưu bài viết thành công!');
     } catch (e) {
-      alert("Cập nhật thất bại!");
+      alert("Lưu thất bại!");
     }
   };
   const handleTogglePostStatus = async (id: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'draft' ? 'published' : 'draft';
-      const updated = await adminService.updatePost(id, { status: newStatus });
-      setManagedPosts(prev => prev.map(p => p.id === id ? updated : p));
+      await onUpdatePost(id, { status: newStatus });
     } catch (e) {
       alert("Đổi trạng thái thất bại!");
     }
@@ -457,8 +586,7 @@ const AdminDashboard: React.FC<{
   const handleDeletePost = async (id: string) => {
     if (!window.confirm('Xác nhận xóa bài viết này?')) return;
     try {
-      await adminService.deletePost(id);
-      setManagedPosts(prev => prev.filter(p => p.id !== id));
+      await onDeletePost(id);
     } catch(e) {}
   };
 
@@ -573,10 +701,13 @@ const AdminDashboard: React.FC<{
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-black text-sm">{u.name.charAt(0)}</div>
-                    <span className="text-sm font-bold text-gray-800">{u.name}</span>
+                    <div>
+                      <span className="block text-sm font-bold text-gray-800">{u.name}</span>
+                      <span className="block text-[10px] text-gray-400 font-medium uppercase tracking-wider">{u.username}</span>
+                    </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-xs text-gray-500">{u.email}</td>
+                <td className="px-6 py-4 text-xs text-gray-500">{u.email || 'N/A'}</td>
                 <td className="px-6 py-4"><span className="text-[9px] font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full uppercase">{u.role}</span></td>
                 <td className="px-6 py-4 text-right">
                   <button onClick={() => handleDeleteUser(u.id)} className="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all ml-auto"><i className="fas fa-trash text-[10px]"></i></button>
@@ -597,13 +728,76 @@ const AdminDashboard: React.FC<{
           <i className="fas fa-plus mr-1.5"></i>Thêm bài viết
         </button>
       </div>
+
+      {articleForm && (
+        <div className="bg-white border-2 border-blue-900/10 rounded-xl p-8 shadow-xl animate-fade-in">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center"><i className="fas fa-file-edit"></i></div>
+            <h3 className="text-sm font-black text-blue-900 uppercase tracking-widest">{articleForm.mode === 'add' ? 'Thêm bài viết mới' : 'Chỉnh sửa bài viết'}</h3>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tiêu đề bài viết</label>
+              <input type="text" value={articleForm.title} onChange={e => setArticleForm({ ...articleForm, title: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-bold" placeholder="Nhập tiêu đề..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nội dung bài viết</label>
+              <textarea value={articleForm.content} onChange={e => setArticleForm({ ...articleForm, content: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-medium h-48" placeholder="Nhập nội dung chi tiết..." />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Hình ảnh bài viết</label>
+              <div className="flex gap-4 items-center">
+                <label className="flex-1 cursor-pointer">
+                  <div className="px-4 py-3 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-900 hover:bg-white transition-all flex items-center justify-center gap-3">
+                    <i className="fas fa-cloud-upload-alt text-gray-400"></i>
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{articleForm.imageFile ? articleForm.imageFile.name : 'Chọn ảnh bài viết'}</span>
+                  </div>
+                  <input type="file" className="hidden" accept="image/*" onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setArticleForm({ ...articleForm, image: reader.result as string, imageFile: file });
+                      reader.readAsDataURL(file);
+                    }
+                  }} />
+                </label>
+                {(articleForm.image || articleForm.imageFile) && (
+                  <div className="relative group w-20 h-20 bg-gray-100 rounded-xl border-2 border-blue-900/10 overflow-hidden">
+                    <img src={articleForm.image} className="w-full h-full object-cover" alt="Preview" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Trạng thái</label>
+              <select value={articleForm.status} onChange={e => setArticleForm({ ...articleForm, status: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-bold">
+                <option value="draft">Bản nháp</option>
+                <option value="published">Đã đăng</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
+            <button onClick={() => setArticleForm(null)} className="px-6 py-3 border text-gray-400 font-bold text-[9px] uppercase tracking-widest rounded-lg hover:bg-gray-50">Hủy bỏ</button>
+            <button onClick={handleSaveArticle} disabled={!articleForm.title} className="px-8 py-3 bg-blue-900 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-600 shadow-md disabled:opacity-50">Lưu bài viết</button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {managedPosts.map(p => (
+        {posts.map(p => (
           <div key={p.id} className="bg-white border rounded-lg p-5 flex items-center justify-between hover:shadow-md transition-all">
             <div className="flex items-center gap-4 flex-1">
-              <div className="w-11 h-11 rounded-lg bg-blue-50 flex items-center justify-center"><i className="fas fa-file-alt text-blue-500"></i></div>
+              <div className="w-16 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border">
+                {p.image ? (
+                  <img src={p.image} className="w-full h-full object-cover" alt="" />
+                ) : (
+                  <i className="fas fa-file-alt text-blue-500"></i>
+                )}
+              </div>
               <div>
-                <h4 className="text-sm font-bold text-gray-800">{p.title}</h4>
+                <h4 className="text-sm font-bold text-gray-800 line-clamp-1">{p.title}</h4>
                 <p className="text-[9px] text-gray-400 font-bold mt-0.5"><i className="far fa-calendar mr-1"></i>{p.date}</p>
               </div>
             </div>
@@ -614,11 +808,14 @@ const AdminDashboard: React.FC<{
               >
                 {p.status === 'published' ? 'Đã đăng' : 'Bản nháp'}
               </button>
-              <button onClick={() => handleEditPost(p.id, p.status)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all"><i className="fas fa-pen text-[10px]"></i></button>
+              <button onClick={() => handleEditPost(p)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-all"><i className="fas fa-pen text-[10px]"></i></button>
               <button onClick={() => handleDeletePost(p.id)} className="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-all"><i className="fas fa-trash text-[10px]"></i></button>
             </div>
           </div>
         ))}
+        {posts.length === 0 && (
+          <div className="py-12 text-center text-gray-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed rounded-lg">Chưa có bài viết nào</div>
+        )}
       </div>
     </div>
   );
@@ -783,15 +980,40 @@ const AdminDashboard: React.FC<{
                         {fieldKey && (
                           <div className={`px-4 py-2 rounded-xl flex items-center gap-3 border-2 transition-all ${verification?.status === 'Approved' ? 'bg-green-50 border-green-200' : verification?.status === 'NeedsExplanation' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'}`}>
                             <span className="text-[9px] font-black text-gray-400 uppercase">{contextName}: <span className="text-orange-600 text-sm ml-2">{dataValue}</span></span>
-                            <div className="w-px h-4 bg-gray-200 mx-1"></div>
-                            <div className="flex gap-1">
-                              <button onClick={() => fieldKey && handleManualDataVerify('Approved', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Approved' ? 'bg-green-600 text-white' : 'hover:bg-green-100 text-green-600'}`}><i className="fas fa-check text-[10px]"></i></button>
-                              <button onClick={() => fieldKey && handleManualDataVerify('NeedsExplanation', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'hover:bg-orange-100 text-orange-500'}`}><i className="fas fa-comment-dots text-[10px]"></i></button>
-                              <button onClick={() => fieldKey && handleManualDataVerify('Rejected', fieldKey, contextName)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${verification?.status === 'Rejected' ? 'bg-red-600 text-white' : 'hover:bg-red-100 text-red-600'}`}><i className="fas fa-times text-[10px]"></i></button>
-                            </div>
                           </div>
                         )}
                       </div>
+
+                      {/* Display XacMinh Explanation & File if exists */}
+                      {fieldKey && selectedStudent.verifications[fieldKey]?.explanation && (
+                        <div className="mb-8 p-6 bg-blue-50 border-2 border-blue-100 rounded-2xl">
+                           <div className="flex justify-between items-start mb-4">
+                             <div>
+                               <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1">Giải trình từ sinh viên:</p>
+                               <p className="text-xs text-gray-700 font-medium leading-relaxed italic">"{selectedStudent.verifications[fieldKey].explanation}"</p>
+                             </div>
+                             {selectedStudent.verifications[fieldKey].fileUrl && (
+                               <button 
+                                 onClick={() => {
+                                   const u = selectedStudent!.verifications[fieldKey!]!.fileUrl!;
+                                   const finalUrl = u.startsWith('http') ? u : `http://localhost:8000${u.startsWith('/') ? '' : '/'}${u}`;
+                                   window.open(finalUrl, '_blank');
+                                 }} 
+                                 className="px-4 py-2 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-md flex items-center gap-2"
+                               >
+                                 <i className="fas fa-file-download"></i> Xem file đính kèm
+                               </button>
+                             )}
+                           </div>
+                           
+                           {/* Quick Actions for General Field */}
+                           <div className="flex gap-2 justify-end border-t border-blue-100 pt-4">
+                              <button onClick={() => handleManualDataVerify('Approved', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'Approved' ? 'bg-green-600 text-white' : 'bg-gray-100 text-green-600 hover:bg-green-50'}`}>Đạt</button>
+                              <button onClick={() => handleManualDataVerify('NeedsExplanation', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-orange-500 hover:bg-orange-50'}`}>Cần giải trình</button>
+                              <button onClick={() => handleManualDataVerify('Rejected', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'Rejected' ? 'bg-red-600 text-white' : 'bg-gray-100 text-red-600 hover:bg-red-50'}`}>Không đạt</button>
+                           </div>
+                        </div>
+                      )}
 
                       <div className="space-y-4">
                         {list.length > 0 ? list.map(ev => (
@@ -842,6 +1064,123 @@ const AdminDashboard: React.FC<{
                   );
                 })()}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* User Management Modal */}
+      {userForm.show && (
+        <div className="fixed inset-0 z-[1200] bg-blue-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-fade-up">
+            <div className="px-8 py-6 bg-blue-900 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tight">Thêm người dùng mới</h3>
+                <p className="text-[10px] font-bold text-blue-300 uppercase tracking-widest mt-1">Khởi tạo tài khoản và hồ sơ</p>
+              </div>
+              <button onClick={() => setUserForm({ ...userForm, show: false })} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"><i className="fas fa-times"></i></button>
+            </div>
+
+            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Role Selection */}
+              <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
+                {[
+                  { key: 'SinhVien', label: 'Sinh viên' },
+                  { key: 'Admin', label: 'Admin' }
+                ].map(r => (
+                  <button
+                    key={r.key}
+                    onClick={() => setUserForm({ ...userForm, data: { ...userForm.data, VaiTro: r.key } })}
+                    className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${userForm.data.VaiTro === r.key ? 'bg-white text-blue-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tên đăng nhập {userForm.data.VaiTro === 'SinhVien' ? '(Mã SV)' : ''}</label>
+                  <input
+                    type="text"
+                    value={userForm.data.TenDangNhap}
+                    onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, TenDangNhap: e.target.value } })}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-900 outline-none transition-all"
+                    placeholder="VD: 20123456"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mật khẩu khởi tạo</label>
+                  <input
+                    type="password"
+                    value={userForm.data.MatKhau}
+                    onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, MatKhau: e.target.value } })}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-900 outline-none transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Họ và tên</label>
+                <input
+                  type="text"
+                  value={userForm.data.HoTen}
+                  onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, HoTen: e.target.value } })}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-900 outline-none transition-all uppercase"
+                  placeholder="VD: NGUYỄN VĂN A"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
+                <input
+                  type="email"
+                  value={userForm.data.Email}
+                  onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, Email: e.target.value } })}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-medium focus:border-blue-900 outline-none transition-all"
+                  placeholder={userForm.data.VaiTro === 'SinhVien' ? 'Để trống nếu dùng email mặc định' : 'VD: admin@due.udn.vn'}
+                />
+              </div>
+
+              {userForm.data.VaiTro === 'SinhVien' && (
+                <div className="grid grid-cols-2 gap-4 animate-fade-in">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lớp sinh hoạt</label>
+                    <input
+                      type="text"
+                      value={userForm.data.Lop}
+                      onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, Lop: e.target.value } })}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-900 outline-none transition-all"
+                      placeholder="VD: 47K12.1"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Khoa / Đơn vị</label>
+                    <input
+                      type="text"
+                      value={userForm.data.Khoa}
+                      onChange={e => setUserForm({ ...userForm, data: { ...userForm.data, Khoa: e.target.value } })}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-900 outline-none transition-all"
+                      placeholder="VD: Khoa Công nghệ thông tin"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-8 bg-gray-50 flex justify-end gap-3 border-t">
+              <button 
+                onClick={() => setUserForm({ ...userForm, show: false })}
+                className="px-6 py-3 text-gray-400 font-black text-[9px] uppercase tracking-widest hover:text-gray-600 transition-all"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={handleSaveUser}
+                className="px-10 py-3 bg-blue-900 text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-all shadow-xl shadow-blue-900/10"
+              >
+                Tạo tài khoản
+              </button>
             </div>
           </div>
         </div>

@@ -6,14 +6,24 @@ from evidences.serializers import MinhChungSerializer
 class XacMinhSerializer(serializers.ModelSerializer):
     TruongDuLieuDisplay = serializers.CharField(source='get_TruongDuLieu_display', read_only=True)
     TrangThaiDisplay = serializers.CharField(source='get_TrangThai_display', read_only=True)
+    FileUrl = serializers.SerializerMethodField()
 
     class Meta:
         model = XacMinh
         fields = [
             'id', 'TruongDuLieu', 'TruongDuLieuDisplay',
-            'TrangThai', 'TrangThaiDisplay', 'PhanHoi', 'NgayCapNhat'
+            'TrangThai', 'TrangThaiDisplay', 
+            'PhanHoiAdmin', 'GiaiTrinhSV', 
+            'NgayCapNhat',
+            'DuongDanFile', 'FileUrl', 'TenFile'
         ]
         read_only_fields = ['id', 'NgayCapNhat']
+
+    def get_FileUrl(self, obj):
+        request = self.context.get('request')
+        if obj.DuongDanFile and request:
+            return request.build_absolute_uri(obj.DuongDanFile.url)
+        return None
 
 
 class SinhVienProfileSerializer(serializers.ModelSerializer):

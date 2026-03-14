@@ -9,6 +9,7 @@ class BaiViet(models.Model):
 
     TieuDe = models.CharField(max_length=300)
     NoiDung = models.TextField()
+    HinhAnh = models.ImageField(upload_to='bai_viet/', blank=True, null=True)
     NgayDang = models.DateField(auto_now_add=True)
     TrangThai = models.CharField(max_length=20, choices=TRANG_THAI_CHOICES, default='draft')
     NgayTao = models.DateTimeField(auto_now_add=True)
@@ -27,7 +28,7 @@ class VinhDanh(models.Model):
     TenSinhVien = models.CharField(max_length=100)
     ThanhTich = models.CharField(max_length=200)
     NoiDung = models.TextField(blank=True, null=True)
-    HinhAnh = models.URLField(max_length=500, blank=True, null=True)
+    HinhAnh = models.ImageField(upload_to='vinh_danh/', blank=True, null=True)
     NgayTao = models.DateTimeField(auto_now_add=True)
 
     class Meta:

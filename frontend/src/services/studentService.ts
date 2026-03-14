@@ -43,15 +43,47 @@ export const studentService = {
     return mapBackendStudentToFrontend(response.data);
   },
 
-  explainEvidence: async (type: CriterionType, guid: string, explanation: string, studentId?: string): Promise<StudentProfile> => {
-    const url = `/api/evidences/${guid}/explain/`;
-    const response = await apiClient.post(url, { GiaiTrinhSV: explanation });
+  updateEvidence: async (type: CriterionType, guid: string, evidence: Evidence, studentId?: string): Promise<StudentProfile> => {
+    const url = `/api/evidences/${guid}/`;
+    const formData = new FormData();
+    formData.append('TieuChi', evidence.subCriterionId);
+    formData.append('TenMinhChung', evidence.name);
+    formData.append('CapDo', evidence.level);
+    formData.append('LoaiMinhChung', evidence.type);
+    if (evidence.decisionNumber) formData.append('SoQuyetDinh', evidence.decisionNumber);
+    if (evidence.file) formData.append('DuongDanFile', evidence.file);
+    formData.append('TenFile', evidence.fileName);
+    formData.append('category', type);
+
+    const response = await apiClient.put(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return mapBackendStudentToFrontend(response.data);
   },
 
-  explainField: async (key: string, explanation: string, studentId?: string): Promise<StudentProfile> => {
+  explainEvidence: async (type: CriterionType, guid: string, explanation: string, file?: File, studentId?: string): Promise<StudentProfile> => {
+    const url = `/api/evidences/${guid}/explain/`;
+    const formData = new FormData();
+    formData.append('GiaiTrinhSV', explanation);
+    if (file) {
+      formData.append('DuongDanFile', file);
+    }
+    const response = await apiClient.post(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return mapBackendStudentToFrontend(response.data);
+  },
+
+  explainField: async (key: string, explanation: string, file?: File, studentId?: string): Promise<StudentProfile> => {
     const url = `/api/students/me/fields/${key}/explain/`;
-    const response = await apiClient.post(url, { GiaiTrinhSV: explanation });
+    const formData = new FormData();
+    formData.append('GiaiTrinhSV', explanation);
+    if (file) {
+      formData.append('DuongDanFile', file);
+    }
+    const response = await apiClient.post(url, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return mapBackendStudentToFrontend(response.data);
   },
 

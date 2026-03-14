@@ -7,42 +7,73 @@ import { analyzeEvidence } from '../services/geminiService';
 interface EvidenceFormProps {
   criterionType: CriterionType;
   isHard: boolean;
-  subCriterionName: string; // Thêm prop này
+  subCriterionName: string; 
+  subCriterionId?: string; // Bổ sung ID để binding chính xác
+  initialData?: Evidence;
+  criteriaGroups: any[];
   onAdd: (evidence: Evidence) => void;
   onCancel: () => void;
 }
 
-const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subCriterionName, onAdd, onCancel }) => {
-  const [name, setName] = useState('');
-  const [subCriterionId, setSubCriterionId] = useState('');
-  const [level, setLevel] = useState<EvidenceLevel>(EvidenceLevel.KHOA);
-  const [type, setType] = useState<EvidenceType>(EvidenceType.NO_DECISION);
-  const [decisionNumber, setDecisionNumber] = useState('');
-  const [qty, setQty] = useState<number | ''>('');
+const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subCriterionName, subCriterionId: propsSubId, initialData, criteriaGroups, onAdd, onCancel }) => {
+  const [name, setName] = useState(initialData?.name || '');
+  const [subCriterionId, setSubCriterionId] = useState(initialData?.subCriterionId || propsSubId || '');
+  const [level, setLevel] = useState<EvidenceLevel>(initialData?.level || EvidenceLevel.KHOA);
+  const [type, setType] = useState<EvidenceType>(initialData?.type || EvidenceType.NO_DECISION);
+  const [decisionNumber, setDecisionNumber] = useState(initialData?.decisionNumber || '');
+  const [qty, setQty] = useState<number | ''>(initialData?.qty || '');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ isSuitable: boolean; suggestedScore: number; reasoning: string } | null>(null);
 
   const availableSubCriteria = useMemo(() => {
-    const profileBasedCriteria = [
+    const profileBasedSlugs = [
       'eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 
       'aca_hard_1', 'aca_point_7', 
       'phy_hard_1',
       'int_hard_1', 'int_hard_2'
     ];
-    return SUB_CRITERIA[criterionType].filter(sc => sc.isHard === isHard && !profileBasedCriteria.includes(sc.id));
-  }, [criterionType, isHard]);
 
+    const group = criteriaGroups.find(g => {
+      const catMap: Record<string, CriterionType> = {
+        'Đạo đức tốt': CriterionType.ETHICS,
+        'Học tập tốt': CriterionType.ACADEMIC,
+        'Thể lực tốt': CriterionType.PHYSICAL,
+        'Tình nguyện tốt': CriterionType.VOLUNTEER,
+        'Hội nhập tốt': CriterionType.INTEGRATION
+      };
+      return catMap[g.TenNhom] === criterionType;
+    });
+
+    if (!group) return [];
+
+    return group.tieu_chi
+      .filter((tc: any) => {
+        // Luôn hiển thị nếu là tiêu chí đang được chọn rõ ràng bằng propsSubId
+        if (propsSubId && tc.MaTieuChi === propsSubId) return true;
+        
+        // Nếu không, lọc theo loại cứng/cộng và loại trừ các tiêu chí profile mặc định
+        return (tc.LoaiTieuChi === 'Cung') === isHard && !profileBasedSlugs.includes(tc.MaTieuChi);
+      })
+      .map((tc: any) => ({
+        id: tc.MaTieuChi,
+        description: tc.MoTa,
+        isHard: tc.LoaiTieuChi === 'Cung',
+        minQty: tc.SoLuongToiThieu
+      }));
+  }, [criterionType, isHard, criteriaGroups, propsSubId, subCriterionName]);
+
+  // Tắt hẳn logic tìm ID theo tên (subCriterionName) vì dễ sinh lỗi lệch chuỗi
+  // Giữ nguyên subCriterionId được truyền từ component cha (propsSubId)
   useEffect(() => {
-    // Nếu có tiêu chí cụ thể được chọn từ bên ngoài, tìm ID của nó
-    const matched = availableSubCriteria.find(sc => sc.description === subCriterionName);
-    if (matched) {
-      setSubCriterionId(matched.id);
-    } else if (availableSubCriteria.length > 0) {
+    if (initialData) return;
+    if (propsSubId) {
+      setSubCriterionId(propsSubId);
+    } else if (availableSubCriteria.length > 0 && !subCriterionId) {
       setSubCriterionId(availableSubCriteria[0].id);
     }
-  }, [availableSubCriteria, subCriterionName]);
+  }, [propsSubId, availableSubCriteria, initialData]);
 
   const selectedSubCriterion = useMemo(() => availableSubCriteria.find(sc => sc.id === subCriterionId), [availableSubCriteria, subCriterionId]);
   const showQtyInput = selectedSubCriterion?.minQty !== undefined;
@@ -70,27 +101,27 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
     setError('');
 
     // Validation
-    if (!subCriterionId) { setError('Vui lòng chọn tiêu chí cụ thể.'); return; }
+    if (!subCriterionId && !propsSubId) { setError('Vui lòng chọn tiêu chí cụ thể.'); return; }
     if (!name.trim()) { setError('Vui lòng nhập tên hoạt động hoặc tên chứng chỉ.'); return; }
     if (showDecisionInput && !decisionNumber.trim()) { setError('Vui lòng nhập số hiệu quyết định hoặc mã số chứng chỉ.'); return; }
     if (showQtyInput && (qty === '' || qty <= 0)) { setError('Vui lòng nhập số lượng (số ngày/mức độ) hợp lệ.'); return; }
-    if (!file) { setError('Vui lòng đính kèm tập tin minh chứng (PDF hoặc Ảnh).'); return; }
+    if (!file && !initialData) { setError('Vui lòng đính kèm tập tin minh chứng (PDF hoặc Ảnh).'); return; }
 
     const newEvidence: Evidence = {
-      id: Math.random().toString(36).substr(2, 9),
-      subCriterionId,
+      id: initialData?.id || Math.random().toString(36).substr(2, 9),
+      subCriterionId: subCriterionId || propsSubId || '',
       name: name.trim(),
       level,
       type,
       decisionNumber: showDecisionInput ? decisionNumber.trim() : undefined,
       qty: showQtyInput && typeof qty === 'number' ? qty : undefined,
-      fileUrl: URL.createObjectURL(file),
-      file,
-      fileName: file.name,
-      date: new Date().toISOString().split('T')[0],
-      points: 0, 
+      fileUrl: file ? URL.createObjectURL(file) : (initialData?.fileUrl || ''),
+      file: file || undefined,
+      fileName: file ? file.name : (initialData?.fileName || ''),
+      date: initialData?.date || new Date().toISOString().split('T')[0],
+      points: initialData?.points || 0, 
       isHardCriterion: isHard,
-      status: 'Pending'
+      status: initialData?.status || 'Pending'
     };
 
     onAdd(newEvidence);

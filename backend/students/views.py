@@ -46,7 +46,7 @@ class SinhVienSubmitView(APIView):
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Chưa có hồ sơ.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if sv.TrangThaiHoSo != 'Draft':
+        if sv.TrangThaiHoSo not in ['Draft', 'Processing']:
             return Response(
                 {'detail': f'Không thể nộp khi hồ sơ đang ở trạng thái {sv.TrangThaiHoSo}.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -67,7 +67,7 @@ class SinhVienSubmitView(APIView):
         for field in FIELDS:
             XacMinh.objects.get_or_create(SinhVien=sv, TruongDuLieu=field)
 
-        return Response({'detail': 'Nộp hồ sơ thành công.', 'TrangThai': sv.TrangThaiHoSo})
+        return Response(SinhVienProfileSerializer(sv).data)
 
 
 class SinhVienUnsubmitView(APIView):
@@ -97,7 +97,7 @@ class AdminSinhVienListView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        qs = SinhVien.objects.select_related('TaiKhoan').prefetch_related('xac_minh')
+        qs = SinhVien.objects.exclude(TrangThaiHoSo='Draft').select_related('TaiKhoan').prefetch_related('xac_minh')
 
         # Filter
         trang_thai = request.query_params.get('trangThai')
@@ -143,9 +143,6 @@ class AdminSinhVienApproveView(APIView):
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if sv.TrangThaiHoSo not in ['Submitted', 'Processing']:
-            return Response({'detail': 'Hồ sơ chưa được nộp.'}, status=status.HTTP_400_BAD_REQUEST)
-
         sv.TrangThaiHoSo = 'Approved'
         sv.PhanHoiChung = request.data.get('phanHoi', '')
         sv.tinh_tong_diem()
@@ -171,7 +168,7 @@ class AdminSinhVienRejectView(APIView):
 class AdminSinhVienFeedbackView(APIView):
     permission_classes = [IsAdmin]
 
-    def patch(self, request, pk):
+    def post(self, request, pk):
         try:
             sv = SinhVien.objects.get(pk=pk)
         except SinhVien.DoesNotExist:
@@ -214,7 +211,7 @@ class XacMinhUpdateView(APIView):
             return Response({'detail': 'Trạng thái không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)
 
         xm.TrangThai = trang_thai
-        xm.PhanHoi = phan_hoi
+        xm.PhanHoiAdmin = phan_hoi
         xm.save()
         return Response(XacMinhSerializer(xm).data)
 
@@ -234,14 +231,23 @@ class XacMinhExplainView(APIView):
         except XacMinh.DoesNotExist:
             return Response({'detail': 'Trường dữ liệu này không cần giải trình.'}, status=status.HTTP_404_NOT_FOUND)
 
-        if xm.TrangThai != 'NeedsExplanation':
+        # Cho phép sửa nếu đang cần giải trình HOẶC đã gửi rồi nhưng muốn sửa tiếp trước khi Admin xem
+        if xm.TrangThai not in ['NeedsExplanation', 'Pending']:
             return Response({'detail': 'Trường này không yêu cầu giải trình.'}, status=status.HTTP_400_BAD_REQUEST)
 
         giai_trinh = request.data.get('GiaiTrinhSV', '')
-        if not giai_trinh:
-            return Response({'detail': 'Vui lòng nhập nội dung giải trình.'}, status=status.HTTP_400_BAD_REQUEST)
+        new_file = request.data.get('DuongDanFile')
 
-        xm.PhanHoi = giai_trinh # Ở đây backend dùng chung field PhanHoi hoặc bạn có thể thêm field GiaiTrinhSV vào XacMinh model
+        if not giai_trinh and not new_file:
+            return Response({'detail': 'Vui lòng nhập nội dung giải trình hoặc đính kèm file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if giai_trinh:
+            xm.GiaiTrinhSV = giai_trinh
+        if new_file:
+            xm.DuongDanFile = new_file
+            if hasattr(new_file, 'name'):
+                xm.TenFile = new_file.name.split('/')[-1]
+
         xm.TrangThai = 'Pending'
         xm.save()
-        return Response({'detail': 'Đã gửi giải trình.'})
+        return Response(SinhVienProfileSerializer(sv).data)

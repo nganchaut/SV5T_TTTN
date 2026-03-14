@@ -4,12 +4,14 @@ import HomeView from '../pages/HomeView';
 import LoginView from '../pages/LoginView';
 import StudentDashboard from '../pages/StudentDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
+import PostDetailView from '../pages/PostDetailView';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { StudentProfile, FeaturedFace, CriterionType, Evidence, FieldVerification } from '../types';
 
 interface AppRoutesProps {
   userRole: 'student' | 'admin' | 'guest';
   faces: FeaturedFace[];
+  posts: any[];
   student: StudentProfile;
   students: StudentProfile[];
   onLogin: (role: 'student' | 'admin', studentId?: string) => void;
@@ -25,17 +27,23 @@ interface AppRoutesProps {
   onUnsubmit: () => void;
   // Admin Props
   setActiveStudentId: (id: string) => void;
+  criteriaGroups: any[];
+  setCriteriaGroups: React.Dispatch<React.SetStateAction<any[]>>;
   handleAdminUpdateStatus: (status: StudentProfile['status'], feedback?: string) => void;
   handleAdminUpdateEvidenceStatus: (cat: CriterionType, id: string, status: Evidence['status'], feedback?: string) => void;
   handleUpdateFieldVerification: (field: keyof StudentProfile['verifications'], action: FieldVerification['status'], feedback?: string) => void;
   handleAddFace: (face: Omit<FeaturedFace, 'id'>) => void;
   handleUpdateFace: (id: string, face: Partial<FeaturedFace>) => void;
   handleDeleteFace: (id: string) => void;
+  onAddPost: (post: { title: string, content: string, status: string, imageFile?: File }) => void;
+  onUpdatePost: (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => void;
+  onDeletePost: (id: string) => void;
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
   userRole,
   faces,
+  posts,
   student,
   students,
   onLogin,
@@ -49,16 +57,22 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   onResubmit,
   onUnsubmit,
   setActiveStudentId,
+  criteriaGroups,
+  setCriteriaGroups,
   handleAdminUpdateStatus,
   handleAdminUpdateEvidenceStatus,
   handleUpdateFieldVerification,
   handleAddFace,
   handleUpdateFace,
-  handleDeleteFace
+  handleDeleteFace,
+  onAddPost,
+  onUpdatePost,
+  onDeletePost
 }) => {
   return (
     <Routes>
-      <Route path="/" element={<HomeView faces={faces} userRole={userRole} onNavigate={onNavigate} />} />
+      <Route path="/" element={<HomeView faces={faces} posts={posts} userRole={userRole} onNavigate={onNavigate} />} />
+      <Route path="/posts/:id" element={<PostDetailView posts={posts} />} />
       <Route path="/login" element={<LoginView onLogin={onLogin} onNavigate={onNavigate} />} />
       <Route path="/profile" element={
         <ProtectedRoute allowedRoles={['student']}>
@@ -72,6 +86,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             onSubmit={onSubmit}
             onResubmit={onResubmit}
             onUnsubmit={onUnsubmit}
+            criteriaGroups={criteriaGroups}
           />
         </ProtectedRoute>
       } />
@@ -88,6 +103,12 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             onAddFace={handleAddFace}
             onUpdateFace={handleUpdateFace}
             onDeleteFace={handleDeleteFace}
+            criteriaGroups={criteriaGroups}
+            setCriteriaGroups={setCriteriaGroups}
+            posts={posts}
+            onAddPost={onAddPost}
+            onUpdatePost={onUpdatePost}
+            onDeletePost={onDeletePost}
           />
         </ProtectedRoute>
       } />

@@ -15,7 +15,7 @@ class TieuChiSerializer(serializers.ModelSerializer):
     class Meta:
         model = TieuChi
         fields = [
-            'id', 'MoTa', 'LoaiTieuChi', 'LoaiDisplay',
+            'id', 'MaTieuChi', 'MoTa', 'LoaiTieuChi', 'LoaiDisplay',
             'Diem', 'CoSoQuyetDinh', 'SoLuongToiThieu',
             'ThuTu', 'diem_cap_do'
         ]
