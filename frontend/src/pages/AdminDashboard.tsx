@@ -155,16 +155,17 @@ const AdminDashboard: React.FC<{
   };
 
   // Featured Faces Management
-  const [faceForm, setFaceForm] = useState<{ mode: 'add' | 'edit', id?: string, name: string, achievement: string, content: string, image: string } | null>(null);
+  const [faceForm, setFaceForm] = useState<{ mode: 'add' | 'edit', id?: string, name: string, achievement: string, content: string, image: string, imageFile?: File } | null>(null);
 
   const handleSaveFace = () => {
     if (!faceForm) return;
     if (faceForm.mode === 'add') {
-      const newFace: Omit<FeaturedFace, 'id'> = {
+      const newFace: Omit<FeaturedFace, 'id'> & { imageFile?: File } = {
         name: faceForm.name,
         achievement: faceForm.achievement,
         content: faceForm.content,
-        image: faceForm.image
+        image: faceForm.image,
+        imageFile: faceForm.imageFile
       };
       onAddFace(newFace);
     } else if (faceForm.id) {
@@ -172,7 +173,8 @@ const AdminDashboard: React.FC<{
         name: faceForm.name,
         achievement: faceForm.achievement,
         content: faceForm.content,
-        image: faceForm.image
+        image: faceForm.image,
+        imageFile: faceForm.imageFile
       });
     }
     setFaceForm(null);
@@ -216,10 +218,24 @@ const AdminDashboard: React.FC<{
               <textarea value={faceForm.content} onChange={e => setFaceForm({ ...faceForm, content: e.target.value })} className="w-full px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-sm font-medium h-24" placeholder="VD: Gương mặt sinh viên xuất sắc tiêu biểu của nhà trường." />
             </div>
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">URL Hình ảnh</label>
-              <div className="flex gap-4">
-                <input type="text" value={faceForm.image} onChange={e => setFaceForm({ ...faceForm, image: e.target.value })} className="flex-1 px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-xs" placeholder="https://..." />
-                {faceForm.image && <img src={faceForm.image} className="w-12 h-12 rounded object-cover border" alt="Preview" />}
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Hình ảnh</label>
+              <div className="flex gap-4 items-center">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setFaceForm({ ...faceForm, imageFile: file, image: reader.result as string });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
+                  className="flex-1 px-4 py-3 bg-gray-50 border rounded-lg focus:ring-2 focus:ring-blue-900 outline-none text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                />
+                {faceForm.image && <img src={faceForm.image} className="w-16 h-16 rounded object-cover border shadow-sm" alt="Preview" />}
               </div>
             </div>
           </div>
@@ -234,8 +250,19 @@ const AdminDashboard: React.FC<{
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {faces.map(face => (
           <div key={face.id} className="bg-white border rounded-xl overflow-hidden group hover:shadow-xl transition-all relative">
-            <div className="aspect-[4/3] bg-gray-100 overflow-hidden relative">
-              <img src={face.image} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" alt={face.name} />
+            <div className="aspect-[4/3] bg-gray-100 overflow-hidden relative flex items-center justify-center">
+              {face.image ? (
+                <img 
+                  src={face.image} 
+                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" 
+                  alt={face.name} 
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-gray-300">
+                  <i className="fas fa-user-circle text-5xl mb-2"></i>
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Chưa có ảnh</span>
+                </div>
+              )}
               <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                 <button onClick={() => openEditFace(face)} className="w-8 h-8 bg-white/90 text-blue-600 rounded-lg flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-lg"><i className="fas fa-pen text-[10px]"></i></button>
                 <button onClick={() => handleDeleteFace(face.id)} className="w-8 h-8 bg-white/90 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-600 hover:text-white transition-all shadow-lg"><i className="fas fa-trash text-[10px]"></i></button>

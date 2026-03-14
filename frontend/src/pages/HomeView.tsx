@@ -138,7 +138,13 @@ const HomeView: React.FC<{ faces: FeaturedFace[], userRole: 'student' | 'admin' 
             {faces.slice(0, 3).map((f, i) => (
               <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all group backdrop-blur-sm">
                 <div className="flex items-center gap-5 mb-6">
-                  <img src={f.image || 'https://via.placeholder.com/300x400?text=Sinh+Vien+5+Tot'} className="w-20 h-20 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all" alt={f.name} />
+                  {f.image ? (
+                    <img src={f.image} className="w-20 h-20 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all" alt={f.name} />
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-white/10 flex items-center justify-center">
+                      <i className="fas fa-user text-2xl opacity-30"></i>
+                    </div>
+                  )}
                   <div>
                     <h3 className="text-lg font-black uppercase tracking-tight">{f.name}</h3>
                     <p className="text-orange-400 text-[9px] font-black uppercase tracking-widest mt-1">{f.achievement}</p>

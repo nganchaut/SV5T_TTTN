@@ -27,7 +27,7 @@ class VinhDanh(models.Model):
     TenSinhVien = models.CharField(max_length=100)
     ThanhTich = models.CharField(max_length=200)
     NoiDung = models.TextField(blank=True, null=True)
-    HinhAnh = models.URLField(max_length=500, blank=True, null=True)
+    HinhAnh = models.ImageField(upload_to='featured_faces/', max_length=500, blank=True, null=True)
     NgayTao = models.DateTimeField(auto_now_add=True)
 
     class Meta:

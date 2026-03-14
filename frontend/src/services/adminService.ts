@@ -70,24 +70,39 @@ export const adminService = {
     return mapBackendStudentToFrontend(detail.data);
   },
 
-  addFace: async (face: Omit<FeaturedFace, 'id'>): Promise<FeaturedFace> => {
-    const payload = {
-      TenSinhVien: face.name,
-      ThanhTich: face.achievement,
-      NoiDung: face.content,
-      // If we support actual image files, we would use FormData here
-    };
-    const response = await apiClient.post('/api/featured/', payload);
+  addFace: async (face: Omit<FeaturedFace, 'id'> & { imageFile?: File }): Promise<FeaturedFace> => {
+    const payload = new FormData();
+    payload.append('TenSinhVien', face.name);
+    payload.append('ThanhTich', face.achievement);
+    payload.append('NoiDung', face.content);
+    if (face.imageFile) {
+      payload.append('HinhAnh', face.imageFile);
+    }
+    
+    // apiClient will automatically set correct Content-Type with boundary for FormData
+    const response = await apiClient.post('/api/featured/', payload, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     const d = response.data;
     return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: d.HinhAnhUrl || d.HinhAnh || '' };
   },
 
-  updateFace: async (id: string, face: Partial<FeaturedFace>): Promise<FeaturedFace> => {
-    const payload: any = {};
-    if (face.name) payload.TenSinhVien = face.name;
-    if (face.achievement) payload.ThanhTich = face.achievement;
-    if (face.content) payload.NoiDung = face.content;
-    const response = await apiClient.put(`/api/featured/${id}/`, payload);
+  updateFace: async (id: string, face: Partial<FeaturedFace> & { imageFile?: File }): Promise<FeaturedFace> => {
+    const payload = new FormData();
+    if (face.name) payload.append('TenSinhVien', face.name);
+    if (face.achievement) payload.append('ThanhTich', face.achievement);
+    if (face.content) payload.append('NoiDung', face.content);
+    if (face.imageFile) {
+      payload.append('HinhAnh', face.imageFile);
+    }
+    
+    const response = await apiClient.put(`/api/featured/${id}/`, payload, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     const d = response.data;
     return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: d.HinhAnhUrl || d.HinhAnh || '' };
   },
