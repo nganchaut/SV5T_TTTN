@@ -124,34 +124,32 @@ DATA = [
         'ThuTu': 4,
         'tieu_chi': [
             {
-                'MoTa': 'Tham gia ít nhất 3 ngày tình nguyện trong năm học',
+                'MaTieuChi': 'vol_hard_1',
+                'MoTa': 'Tham gia và đạt GCN 01 trong các chiến dịch: Mùa hè xanh, Tiếp sức mùa thi, Đông - Xuân',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
-                'CoSoQuyetDinh': False, 'SoLuongToiThieu': 3, 'ThuTu': 1,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Tham gia chiến dịch/chương trình tình nguyện tập trung',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
-                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 2,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'MaTieuChi': 'vol_hard_2',
+                'MoTa': 'Tham gia ít nhất 03 ngày tình nguyện/năm (Cần ít nhất 03 GCN cộng dồn)',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': 3, 'ThuTu': 2,
+                'diem_cap_do': []
             },
             {
-                'MoTa': 'Đạt danh hiệu, giải thưởng trong hoạt động tình nguyện',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'MaTieuChi': 'vol_hard_3',
+                'MoTa': 'Đạt Giấy khen cấp Trường trở lên về hoạt động tình nguyện',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'vol_hard_4',
+                'MoTa': 'Đạt ít nhất 2 GCN Hiến máu tại DUE (hoặc 3 GCN tại đơn vị ngoài trường)',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': 2, 'ThuTu': 4,
+                'diem_cap_do': []
             },
         ]
     },
@@ -215,10 +213,17 @@ class Command(BaseCommand):
 
             for tc_data in tieu_chi_data:
                 diem_cap_do_data = tc_data.pop('diem_cap_do')
-                tc, tc_created = TieuChi.objects.get_or_create(
-                    NhomTieuChi=nhom,
-                    MoTa=tc_data['MoTa'],
-                    defaults=tc_data
+                tc, tc_created = TieuChi.objects.update_or_create(
+                    MaTieuChi=tc_data.get('MaTieuChi'),
+                    defaults={
+                        'NhomTieuChi': nhom,
+                        'MoTa': tc_data['MoTa'],
+                        'LoaiTieuChi': tc_data.get('LoaiTieuChi', 'Cong'),
+                        'Diem': tc_data.get('Diem'),
+                        'CoSoQuyetDinh': tc_data.get('CoSoQuyetDinh', False),
+                        'SoLuongToiThieu': tc_data.get('SoLuongToiThieu'),
+                        'ThuTu': tc_data.get('ThuTu', 0),
+                    }
                 )
                 if tc_created:
                     created_criteria += 1

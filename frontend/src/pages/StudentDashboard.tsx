@@ -57,7 +57,8 @@ export const checkHardMet = (cat: CriterionType, student: StudentProfile, criter
     return true;
   }
 
-  return hardCriteria.every((tc: any) => {
+  const isVolunteer = cat === CriterionType.VOLUNTEER;
+  const results = hardCriteria.map((tc: any) => {
     const slug = tc.MaTieuChi;
     
     // Profile-based checks
@@ -76,16 +77,34 @@ export const checkHardMet = (cat: CriterionType, student: StudentProfile, criter
        return student.peScore >= 7.0 || approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
     }
     
-    if (slug === 'vol_hard_1' || slug === 'vol_hard_2' || slug === 'vol_hard_3' || slug === 'vol_hard_4') {
-       // Original complex logic for volunteer... 
-       // For simplicity in a dynamic system, if it's a hard criterion in backend,
-       // and it has an approved evidence, it's met.
-       return approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
+    // Quantity rules for Volunteer
+    if (isVolunteer) {
+      const matchingEvs = approvedEvs.filter(e => e.subCriterionId === slug);
+      const count = matchingEvs.length;
+      const gkCount = matchingEvs.filter(e => e.type === EvidenceType.GK).length;
+
+      if (slug === 'vol_hard_1') return count >= 1; // Chiến dịch: 1 GCN
+      if (slug === 'vol_hard_2') return count >= 3; // 3 ngày: 3 GCN
+      if (slug === 'vol_hard_3') {
+        const validGK = matchingEvs.filter(e => 
+          e.type === EvidenceType.GK && 
+          e.level !== EvidenceLevel.KHOA // Cấp trường trở lên
+        ).length;
+        return validGK >= 1;
+      }
+      if (slug === 'vol_hard_4') {
+        // Hiến máu: 2 GCN tại DUE (TRUONG) hoặc 3 GCN tổng cộng
+        const atDue = matchingEvs.filter(e => e.level === EvidenceLevel.TRUONG).length;
+        return atDue >= 2 || count >= 3;
+      }
+      return count >= 1;
     }
 
     // Default: Check if any approved evidence exists for this specific TC ID
     return approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
   });
+
+  return isVolunteer ? results.some(r => !!r) : results.every(r => !!r);
 };
 
 const StudentDashboard: React.FC<{
@@ -841,26 +860,32 @@ const StudentDashboard: React.FC<{
             </div>
           </div>
           {/* Step progress */}
-          <div className="flex items-center gap-1.5 mt-6">
-            {STEPS.map((s, idx) => (
-              <div key={idx} className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentStepIdx(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all cursor-pointer
-                    ${idx === currentStepIdx
-                      ? 'bg-blue-900 text-white shadow-md'
-                      : idx < currentStepIdx
-                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                    }`}
-                >
-                  {idx < currentStepIdx && <i className="fas fa-check text-[7px]"></i>}
-                  <span className="hidden sm:inline">{STEP_LABELS[s] || s}</span>
-                  <span className="sm:hidden">{idx + 1}</span>
-                </button>
-                {idx < STEPS.length - 1 && <div className={`w-3 h-0.5 ${idx < currentStepIdx ? 'bg-blue-300' : 'bg-gray-200'}`}></div>}
-              </div>
-            ))}
+          <div className="flex items-center gap-1.5 mt-6 overflow-x-auto pb-2 scrollbar-none">
+            {STEPS.map((s, idx) => {
+              const isCat = s !== 'SUBMIT';
+              const isMet = isCat ? catStatus[s as CriterionType] : allHardMet;
+              const isActive = idx === currentStepIdx;
+
+              return (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCurrentStepIdx(idx)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap
+                      ${isActive
+                        ? (isMet ? 'bg-green-600 text-white shadow-lg scale-105' : 'bg-red-600 text-white shadow-lg scale-105')
+                        : (isMet ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-50 text-red-500 hover:bg-red-100')
+                      }`}
+                  >
+                    {isMet ? <i className="fas fa-check-circle text-[8px]"></i> : <i className="fas fa-exclamation-circle text-[8px]"></i>}
+                    <span className="hidden sm:inline">{STEP_LABELS[s] || s}</span>
+                    <span className="sm:hidden">{idx + 1}</span>
+                  </button>
+                  {idx < STEPS.length - 1 && (
+                    <div className={`w-3 h-0.5 ${isMet ? 'bg-green-300' : 'bg-gray-200'}`}></div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="flex gap-3">

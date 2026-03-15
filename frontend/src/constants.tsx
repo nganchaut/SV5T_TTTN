@@ -28,10 +28,10 @@ export const SUB_CRITERIA: Record<CriterionType, SubCriterion[]> = {
     { id: 'phy_point_2', description: 'Đội tuyển/Cá nhân thi đấu Hội thao các cấp', isHard: false }
   ],
   [CriterionType.VOLUNTEER]: [
-    { id: 'vol_hard_1', description: 'Chiến dịch Mùa hè xanh/Tiếp sức mùa thi/Đông-Xuân', isHard: true },
-    { id: 'vol_hard_2', description: 'Tham gia ít nhất 03 ngày tình nguyện/năm', isHard: true, minQty: 3 },
-    { id: 'vol_hard_3', description: 'Giấy khen cấp Trường trở lên về tình nguyện', isHard: true },
-    { id: 'vol_hard_4', description: 'GCN Hiến máu nhân đạo (2 lần tại DUE hoặc 3 lần ngoài)', isHard: true, minQty: 2 },
+    { id: 'vol_hard_1', description: 'Tham gia và đạt GCN 01 trong các chiến dịch: Mùa hè xanh, Tiếp sức mùa thi, Đông - Xuân', isHard: true },
+    { id: 'vol_hard_2', description: 'Tham gia ít nhất 03 ngày tình nguyện/năm (Cần ít nhất 03 GCN cộng dồn)', isHard: true, minQty: 3 },
+    { id: 'vol_hard_3', description: 'Đạt Giấy khen cấp Trường trở lên về hoạt động tình nguyện', isHard: true },
+    { id: 'vol_hard_4', description: 'Đạt ít nhất 2 GCN Hiến máu tại DUE (hoặc 3 GCN tại đơn vị ngoài trường)', isHard: true, minQty: 2 },
     { id: 'vol_point_2', description: 'Tham gia hoạt động tình nguyện tiêu biểu khác', isHard: false }
   ],
   [CriterionType.INTEGRATION]: [
@@ -44,8 +44,5 @@ export const SUB_CRITERIA: Record<CriterionType, SubCriterion[]> = {
   ]
 };
 
-export const FACES_OF_THE_YEAR = [
-  { name: 'Nguyễn Văn A', achievement: 'Giải Nhất NCKH Cấp Quốc gia', image: 'https://picsum.photos/seed/a/400/400' },
-  { name: 'Trần Thị B', achievement: 'Đại sứ Tình nguyện 2024', image: 'https://picsum.photos/seed/b/400/400' },
-  { name: 'Lê Văn C', achievement: 'Gương mặt trẻ tiêu biểu ĐHĐN', image: 'https://picsum.photos/seed/c/400/400' },
-];
+export const FACES_OF_THE_YEAR: any[] = [];
+
