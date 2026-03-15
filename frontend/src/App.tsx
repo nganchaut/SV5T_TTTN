@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import AppRoutes from './routes/AppRoutes';
-import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification } from './types';
+import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification, Post } from './types';
 import { checkHardMet } from './pages/StudentDashboard';
 import { authService } from './services/authService';
 import { studentService } from './services/studentService';
@@ -14,7 +14,7 @@ const App: React.FC = () => {
 
   const [userRole, setUserRole] = useState<'student' | 'admin' | 'guest'>('guest');
   const [faces, setFaces] = useState<FeaturedFace[]>([]);
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string>('');
   const [criteriaGroups, setCriteriaGroups] = useState<any[]>([]);
@@ -64,9 +64,7 @@ const App: React.FC = () => {
           setStudents(data);
         } else {
           setUserRole('student');
-          // Fake getting student Id from currentUser
-          const sId = currentUser.studentId || 'SV001';
-          const myProfile = await studentService.getProfile(sId);
+          const myProfile = await studentService.getProfile();
           setStudents([myProfile]);
           setActiveStudentId(myProfile.id);
         }
@@ -118,7 +116,7 @@ const App: React.FC = () => {
       }
     } : s));
     try {
-      const updatedProfile = await studentService.addEvidence(type, ev, currentUser?.studentId);
+      const updatedProfile = await studentService.addEvidence(type, ev);
       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
     } catch (err) {
       console.error('addEvidence failed:', err);
@@ -149,7 +147,7 @@ const App: React.FC = () => {
     } : s));
 
     try {
-      const updatedProfile = await studentService.updateEvidence(type, id, updatedEv, currentUser?.studentId);
+      const updatedProfile = await studentService.updateEvidence(type, id, updatedEv);
       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
     } catch (err) {
       console.error('updateEvidence failed:', err);
@@ -175,7 +173,7 @@ const App: React.FC = () => {
       }
     } : s));
     try {
-      const updatedProfile = await studentService.removeEvidence(type, id, currentUser?.studentId);
+      const updatedProfile = await studentService.removeEvidence(type, id);
       setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
     } catch (err) {
       console.error('removeEvidence failed:', err);
@@ -187,33 +185,33 @@ const App: React.FC = () => {
     // Optimistic UI update (update exactly the active student in the list)
     setStudents(prev => prev.map(s => s.id === student.id ? { ...s, ...data } : s));
     // Real API Call (don't block UI input, just let it sync in background)
-    studentService.updateProfile(data, currentUser?.studentId).then(updatedProfile => {
+    studentService.updateProfile(data).then(updatedProfile => {
        setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
     }).catch(console.error);
   };
 
   const updateEvidenceExplanation = async (type: CriterionType, id: string, explanation: string, file?: File) => {
     const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainEvidence(type, id, explanation, file, currentUser?.studentId);
+    const updatedProfile = await studentService.explainEvidence(type, id, explanation, file);
     setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
   };
 
   const updateFieldExplanation = async (field: keyof StudentProfile['verifications'], explanation: string, file?: File) => {
     const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.explainField(field, explanation, file, currentUser?.studentId);
+    const updatedProfile = await studentService.explainField(field, explanation, file);
     setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
   };
 
   const handleResubmitExplanation = async () => {
     const currentUser = authService.getCurrentUser();
-    const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
+    const updatedProfile = await studentService.submitProfile();
     setStudents([updatedProfile]);
   };
 
   const handleSubmit = async () => {
     try {
       const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.submitProfile(currentUser?.studentId);
+      const updatedProfile = await studentService.submitProfile();
       setStudents([updatedProfile]);
       alert('Hồ sơ của bạn đã được nộp thành công!');
     } catch (err: any) {
@@ -226,7 +224,7 @@ const App: React.FC = () => {
   const handleUnsubmit = async () => {
     if (window.confirm("Bạn có chắc chắn muốn hủy nộp hồ sơ để chỉnh sửa lại không?")) {
       const currentUser = authService.getCurrentUser();
-      const updatedProfile = await studentService.unsubmitProfile(currentUser?.studentId);
+      const updatedProfile = await studentService.unsubmitProfile();
       setStudents([updatedProfile]);
       alert("Đã hủy nộp hồ sơ! Bạn có thể chỉnh sửa ngay bây giờ.");
     }
@@ -305,6 +303,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    authService.logout();
+    setUserRole('guest');
+    setActiveStudentId('');
+    setStudents([]);
+    navigate('/');
+  };
+
   const handleNavigate = (page: string) => {
     if (page === 'home') navigate('/');
     else if (page === 'login') navigate('/login');
@@ -317,13 +323,13 @@ const App: React.FC = () => {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50 flex-col gap-4">
         <i className="fas fa-circle-notch fa-spin text-4xl text-blue-900"></i>
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Đang tải dữ liệu từ MSW...</p>
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">Đang tải dữ liệu...</p>
       </div>
     );
   }
 
   return (
-    <Layout userType={userRole} onNavigate={handleNavigate}>
+    <Layout userType={userRole} onNavigate={handleNavigate} onLogout={handleLogout}>
       <AppRoutes
         userRole={userRole}
         faces={faces}

@@ -6,9 +6,10 @@ interface LayoutProps {
   children: React.ReactNode;
   userType: 'student' | 'admin' | 'guest';
   onNavigate: (page: string) => void;
+  onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, userType, onNavigate }) => {
+const Layout: React.FC<LayoutProps> = ({ children, userType, onNavigate, onLogout }) => {
   const logoUrl = "https://tse3.mm.bing.net/th/id/OIP.Odk0Vk_H8Tfz70lpKj4FQAHaG8?pid=Api&P=0&h=180";
 
   return (
@@ -42,9 +43,7 @@ const Layout: React.FC<LayoutProps> = ({ children, userType, onNavigate }) => {
                   if (userType === 'guest') {
                     onNavigate('login');
                   } else {
-                    authService.logout();
-                    onNavigate('home');
-                    window.location.reload(); 
+                    onLogout();
                   }
                 }}
               >

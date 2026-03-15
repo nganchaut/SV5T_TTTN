@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { CriterionType, EvidenceLevel, EvidenceType, Evidence } from '../types';
-import { SUB_CRITERIA } from '../constants';
+import { SUB_CRITERIA, POINT_MATRIX } from '../constants';
 import { analyzeEvidence } from '../services/geminiService';
 
 interface EvidenceFormProps {
@@ -22,17 +22,15 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const [type, setType] = useState<EvidenceType>(initialData?.type || EvidenceType.NO_DECISION);
   const [decisionNumber, setDecisionNumber] = useState(initialData?.decisionNumber || '');
   const [qty, setQty] = useState<number | ''>(initialData?.qty || '');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ isSuitable: boolean; suggestedScore: number; reasoning: string } | null>(null);
 
   const availableSubCriteria = useMemo(() => {
     const profileBasedSlugs = [
-      'eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 
-      'aca_hard_1', 'aca_point_7', 
-      'phy_hard_1',
-      'int_hard_1', 'int_hard_2'
+      'eth_hard_2', 'eth_point_5', 
+      'aca_point_7'
     ];
 
     const group = criteriaGroups.find(g => {
@@ -81,13 +79,13 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const showDecisionInput = type !== EvidenceType.NO_DECISION;
 
   const handleSmartAnalysis = async () => {
-    if (!file || !name) {
-      setError('Vui lòng nhập tên và chọn tệp trước khi phân tích.');
+    if (files.length === 0 || !name) {
+      setError('Vui lòng nhập tên và chọn ít nhất một tệp trước khi phân tích.');
       return;
     }
     setIsAnalyzing(true);
     setError('');
-    const result = await analyzeEvidence(file.name, name);
+    const result = await analyzeEvidence(files[0].name, name);
     if (result) {
       setAnalysisResult(result);
     } else {
@@ -104,8 +102,29 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
     if (!subCriterionId && !propsSubId) { setError('Vui lòng chọn tiêu chí cụ thể.'); return; }
     if (!name.trim()) { setError('Vui lòng nhập tên hoạt động hoặc tên chứng chỉ.'); return; }
     if (showDecisionInput && !decisionNumber.trim()) { setError('Vui lòng nhập số hiệu quyết định hoặc mã số chứng chỉ.'); return; }
-    if (showQtyInput && (qty === '' || qty <= 0)) { setError('Vui lòng nhập số lượng (số ngày/mức độ) hợp lệ.'); return; }
-    if (!file && !initialData) { setError('Vui lòng đính kèm tập tin minh chứng (PDF hoặc Ảnh).'); return; }
+    if (showQtyInput && (qty === '' || isNaN(Number(qty)) || Number(qty) <= 0)) { 
+      setError('Vui lòng nhập số lượng (số ngày/mức độ) hợp lệ (số nguyên dương).'); 
+      return; 
+    }
+    
+    // Require files if new
+    if (files.length === 0 && !initialData) {
+      setError('Vui lòng đính kèm ít nhất một tập tin minh chứng.');
+      return;
+    }
+
+    const finalQty = showQtyInput ? Number(qty) : undefined;
+
+    // Tính toán điểm số
+    let calculatedPoints = initialData?.points || 0;
+    if (!initialData) {
+      const sub = SUB_CRITERIA[criterionType].find(s => s.id === (subCriterionId || propsSubId));
+      if (sub && sub.points !== undefined) {
+        calculatedPoints = sub.points;
+      } else {
+        calculatedPoints = POINT_MATRIX[level][type];
+      }
+    }
 
     const newEvidence: Evidence = {
       id: initialData?.id || Math.random().toString(36).substr(2, 9),
@@ -114,12 +133,13 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
       level,
       type,
       decisionNumber: showDecisionInput ? decisionNumber.trim() : undefined,
-      qty: showQtyInput && typeof qty === 'number' ? qty : undefined,
-      fileUrl: file ? URL.createObjectURL(file) : (initialData?.fileUrl || ''),
-      file: file || undefined,
-      fileName: file ? file.name : (initialData?.fileName || ''),
+      qty: finalQty,
+      fileUrl: files.length > 0 ? URL.createObjectURL(files[0]) : (initialData?.fileUrl || ''),
+      files: files,
+      fileName: files.length > 0 ? files[0].name : (initialData?.fileName || ''),
+      danh_sach_file: initialData?.danh_sach_file,
       date: initialData?.date || new Date().toISOString().split('T')[0],
-      points: initialData?.points || 0, 
+      points: calculatedPoints,
       isHardCriterion: isHard,
       status: initialData?.status || 'Pending'
     };
@@ -164,7 +184,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
             <button 
               type="button"
               onClick={handleSmartAnalysis}
-              disabled={isAnalyzing || !file || !name}
+              disabled={isAnalyzing || files.length === 0 || !name}
               className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border-2 transition-all ${isAnalyzing ? 'bg-gray-100 text-gray-400 border-gray-100' : 'border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white'}`}
             >
               {isAnalyzing ? <i className="fas fa-spinner animate-spin"></i> : <><i className="fas fa-magic mr-2"></i>AI Check</>}
@@ -241,14 +261,53 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
           <div className="border-2 border-dashed border-gray-100 p-10 text-center hover:border-blue-900 hover:bg-blue-50/30 transition-all relative bg-gray-50/50 group">
             <i className="fas fa-cloud-upload-alt text-gray-300 group-hover:text-blue-900 text-2xl mb-4"></i>
             <div className="block">
-              {file ? (
-                <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">{file.name}</span>
+              {files.length > 0 ? (
+                <span className="text-[11px] font-bold text-blue-900 uppercase tracking-tight">Đã chọn {files.length} tệp</span>
               ) : (
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chọn tệp tin từ thiết bị</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Chọn tệp tin từ thiết bị (có thể chọn nhiều)</span>
               )}
             </div>
-            <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} className="absolute inset-0 opacity-0 cursor-pointer" />
+            <input 
+              type="file" 
+              multiple
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files || []);
+                setFiles(prev => [...prev, ...newFiles]);
+              }} 
+              className="absolute inset-0 opacity-0 cursor-pointer" 
+            />
           </div>
+          
+          {files.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {files.map((f, index) => (
+                <div key={index} className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                  <span className="text-[10px] text-gray-600 truncate max-w-[80%]">{f.name}</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setFiles(prev => prev.filter((_, i) => i !== index))}
+                    className="text-red-500 hover:text-red-700 text-xs px-2"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {initialData?.danh_sach_file && initialData.danh_sach_file.length > 0 && files.length === 0 && (
+            <div className="mt-4 p-3 bg-blue-50/50 rounded-lg">
+              <p className="text-[9px] font-black text-blue-900 uppercase mb-2 tracking-tighter">Tệp hiện có:</p>
+              <div className="space-y-1">
+                {initialData.danh_sach_file.map((f, idx) => (
+                  <div key={idx} className="text-[10px] flex items-center gap-2">
+                    <i className="fas fa-file-alt text-blue-400"></i>
+                    <a href={f.FileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate">{f.TenFile}</a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end space-x-8 pt-10 border-t border-gray-100">

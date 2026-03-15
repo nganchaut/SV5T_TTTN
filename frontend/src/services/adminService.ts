@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 import { StudentProfile, CriterionType, Evidence, FieldVerification, FeaturedFace } from '../types';
-import { mapBackendStudentToFrontend } from '../utils/mapper';
+import { mapBackendStudentToFrontend, formatUrl } from '../utils/mapper';
 
 export const adminService = {
   getProfiles: async (): Promise<StudentProfile[]> => {
@@ -55,7 +55,7 @@ export const adminService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     const d = response.data;
-    return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: d.HinhAnh || '' };
+    return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: formatUrl(d.HinhAnh) };
   },
 
   updateFace: async (id: string, face: Partial<FeaturedFace>): Promise<FeaturedFace> => {
@@ -69,7 +69,7 @@ export const adminService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     const d = response.data;
-    return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: d.HinhAnh || '' };
+    return { id: String(d.id), name: d.TenSinhVien, achievement: d.ThanhTich, content: d.NoiDung, image: formatUrl(d.HinhAnh) };
   },
 
   deleteFace: async (id: string): Promise<void> => {
@@ -83,7 +83,8 @@ export const adminService = {
       id: String(p.id),
       title: p.TieuDe,
       date: p.NgayDang,
-      status: p.TrangThai
+      status: p.TrangThai,
+      image: formatUrl(p.HinhAnh)
     }));
   },
 
@@ -100,7 +101,7 @@ export const adminService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     const p = response.data;
-    return { ...p, id: String(p.id), title: p.TieuDe, date: p.NgayDang, status: p.TrangThai, image: p.HinhAnh };
+    return { ...p, id: String(p.id), title: p.TieuDe, date: p.NgayDang, status: p.TrangThai, image: formatUrl(p.HinhAnh) };
   },
 
   updatePost: async (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }): Promise<any> => {
@@ -114,7 +115,7 @@ export const adminService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     const p = response.data;
-    return { ...p, id: String(p.id), title: p.TieuDe, date: p.NgayDang, status: p.TrangThai, image: p.HinhAnh };
+    return { ...p, id: String(p.id), title: p.TieuDe, date: p.NgayDang, status: p.TrangThai, image: formatUrl(p.HinhAnh) };
   },
 
   deletePost: async (id: string): Promise<void> => {
@@ -183,7 +184,7 @@ export const publicService = {
       name: d.TenSinhVien,
       achievement: d.ThanhTich,
       content: d.NoiDung,
-      image: d.HinhAnh || ''
+      image: formatUrl(d.HinhAnh)
     }));
   },
 
@@ -194,6 +195,13 @@ export const publicService = {
 
   getPosts: async (): Promise<any[]> => {
     const response = await apiClient.get('/api/posts/');
-    return response.data;
+    return response.data.map((p: any) => ({
+      ...p,
+      id: String(p.id),
+      title: p.TieuDe,
+      date: p.NgayDang,
+      status: p.TrangThai,
+      image: formatUrl(p.HinhAnh)
+    }));
   }
 };

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification } from '../types';
+import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification, Post } from '../types';
 import { SUB_CRITERIA } from '../constants';
 import { adminService } from '../services/adminService';
 import { useNavigate, useParams } from 'react-router-dom';
+import { formatUrl } from '../utils/mapper';
 
 const AdminDashboard: React.FC<{
   students: StudentProfile[],
@@ -17,7 +18,7 @@ const AdminDashboard: React.FC<{
   onDeleteFace: (id: string) => void,
   criteriaGroups: any[],
   setCriteriaGroups: React.Dispatch<React.SetStateAction<any[]>>,
-  posts: any[],
+  posts: Post[],
   onAddPost: (post: { title: string, content: string, status: string, imageFile?: File }) => void,
   onUpdatePost: (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => void,
   onDeletePost: (id: string) => void
@@ -995,8 +996,7 @@ const AdminDashboard: React.FC<{
                              {selectedStudent.verifications[fieldKey].fileUrl && (
                                <button 
                                  onClick={() => {
-                                   const u = selectedStudent!.verifications[fieldKey!]!.fileUrl!;
-                                   const finalUrl = u.startsWith('http') ? u : `http://localhost:8000${u.startsWith('/') ? '' : '/'}${u}`;
+                                   const finalUrl = formatUrl(selectedStudent.verifications[fieldKey!]?.fileUrl);
                                    window.open(finalUrl, '_blank');
                                  }} 
                                  className="px-4 py-2 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-md flex items-center gap-2"

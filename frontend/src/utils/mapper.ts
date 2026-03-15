@@ -1,5 +1,14 @@
 import { StudentProfile, CriterionType, Evidence, FieldVerification } from '../types';
 
+export const formatUrl = (url?: string): string => {
+  if (!url) return '';
+  if (url.startsWith('http') || url.startsWith('data:')) return url;
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${cleanBase}${cleanUrl}`;
+};
+
 export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
   // Map verifications
   const verifications: StudentProfile['verifications'] = {
@@ -15,10 +24,10 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
       if (xm.TruongDuLieu && verifications[xm.TruongDuLieu as keyof StudentProfile['verifications']]) {
         verifications[xm.TruongDuLieu as keyof StudentProfile['verifications']] = {
           status: xm.TrangThai,
-          feedback: xm.PhanHoiAdmin || xm.PhanHoi || '', // Fallback to old field if any
+          feedback: xm.PhanHoiAdmin || xm.PhanHoi || '', 
           adminFeedback: xm.PhanHoiAdmin || '',
           explanation: xm.GiaiTrinhSV || '',
-          fileUrl: xm.FileUrl || '',
+          fileUrl: formatUrl(xm.FileUrl || ''),
           fileName: xm.TenFile || ''
         };
       }
@@ -39,7 +48,6 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
       const catName = mc.NhomTieuChiTen;
       let mappedCat: CriterionType | null = null;
       
-      // Attempt to map category name to Enum
       if (catName === 'Đạo đức tốt') mappedCat = CriterionType.ETHICS;
       else if (catName === 'Học tập tốt') mappedCat = CriterionType.ACADEMIC;
       else if (catName === 'Thể lực tốt') mappedCat = CriterionType.PHYSICAL;
@@ -54,8 +62,13 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
           level: mc.CapDo,
           type: mc.LoaiMinhChung,
           decisionNumber: mc.SoQuyetDinh || '',
-          fileUrl: mc.FileUrl || mc.DuongDanFile || '',
+          qty: mc.SoLuong || 1,
+          fileUrl: formatUrl(mc.FileUrl || mc.DuongDanFile || ''),
           fileName: mc.TenFile || '',
+          danh_sach_file: (mc.danh_sach_file || []).map((f: any) => ({
+            ...f,
+            FileUrl: formatUrl(f.FileUrl || f.DuongDanFile)
+          })),
           date: mc.NgayNop || mc.NgayTao || '',
           points: Number(mc.Diem || 0),
           isHardCriterion: Boolean(mc.is_tieu_chi_cung),

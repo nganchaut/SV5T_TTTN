@@ -17,34 +17,53 @@ DATA = [
         'ThuTu': 1,
         'tieu_chi': [
             {
-                'MoTa': 'Điểm rèn luyện đạt từ 80 điểm trở lên (loại Tốt)',
+                'MaTieuChi': 'eth_hard_1',
+                'MoTa': 'Điểm rèn luyện trung bình trong năm học đạt từ 80 điểm trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Không vi phạm pháp luật, nội quy nhà trường trong năm học',
+                'MaTieuChi': 'eth_hard_2',
+                'MoTa': 'Không vi phạm pháp luật và các quy chế, nội quy của nhà trường, địa phương',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 2,
                 'diem_cap_do': []
             },
             {
+                'MaTieuChi': 'eth_point_1',
                 'MoTa': 'Là Đảng viên Đảng Cộng sản Việt Nam',
                 'LoaiTieuChi': 'Cong', 'Diem': 0.4,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Tham gia các hoạt động chính trị, xã hội trong và ngoài trường',
+                'MaTieuChi': 'eth_point_2',
+                'MoTa': 'Thành viên chính thức đội thi tìm hiểu Mác-Lênin, tư tưởng Hồ Chí Minh từ cấp Liên chi trở lên',
                 'LoaiTieuChi': 'Cong', 'Diem': None,
-                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 4,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
+                'diem_cap_do': [('Cấp Khoa/CLB', 0.1), ('Cấp Trường/Phường/Xã', 0.2), ('Cấp ĐHĐN', 0.3), ('Cấp Tỉnh/Thành phố', 0.4)]
+            },
+            {
+                'MaTieuChi': 'eth_point_3',
+                'MoTa': 'Tham luận, bài viết trình bày tại các diễn đàn học thuật về các môn khoa học Mác-Lênin, tư tưởng HCM',
+                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
+                'diem_cap_do': [('Cấp Trường/Phường/Xã', 0.2), ('Cấp Tỉnh/Thành phố', 0.4)]
+            },
+            {
+                'MaTieuChi': 'eth_point_4',
+                'MoTa': 'Là thanh niên tiêu biểu, gương người tốt việc tốt, có hành động dũng cảm cứu người',
+                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 6,
+                'diem_cap_do': [('Cấp Trường/Phường/Xã', 0.2), ('Cấp Tỉnh/Thành phố', 0.4)]
+            },
+            {
+                'MaTieuChi': 'eth_point_5',
+                'MoTa': 'Điểm rèn luyện đạt từ 90 điểm trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': 0.1,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 7,
+                'diem_cap_do': []
             },
         ]
     },
@@ -54,67 +73,102 @@ DATA = [
         'ThuTu': 2,
         'tieu_chi': [
             {
-                'MoTa': 'Điểm trung bình tích lũy (GPA) đạt từ 2.5/4.0 trở lên',
+                'MaTieuChi': 'aca_hard_1',
+                'MoTa': 'Điểm trung bình học tập trong năm học đạt từ 3.2/4.0 trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Đạt giải thưởng trong các cuộc thi học thuật, nghiên cứu khoa học',
+                'MaTieuChi': 'aca_point_1',
+                'MoTa': 'Có tham gia đề tài nghiên cứu khoa học sinh viên từ cấp Khoa trở lên',
                 'LoaiTieuChi': 'Cong', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 2,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'diem_cap_do': [('Cấp Khoa/CLB', 0.1), ('Cấp Trường/Phường/Xã', 0.2), ('Cấp ĐHĐN', 0.3), ('Cấp Tỉnh/Thành phố', 0.4)]
             },
             {
-                'MoTa': 'Được công nhận đề tài nghiên cứu khoa học cấp Khoa trở lên',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'MaTieuChi': 'aca_point_2',
+                'MoTa': 'Có luận văn, đồ án tốt nghiệp đạt điểm đánh giá từ 8.0 trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': 0.1,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'aca_point_3',
+                'MoTa': 'Có bài viết đăng trên tạp chí chuyên ngành',
+                'LoaiTieuChi': 'Cong', 'Diem': 0.4,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'aca_point_4',
+                'MoTa': 'Có bài tham luận in trong kỷ yếu hội thảo khoa học chuyên ngành từ cấp khoa trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
+                'diem_cap_do': [('Cấp Khoa/CLB', 0.1), ('Cấp Trường/Phường/Xã', 0.2), ('Cấp ĐHĐN', 0.3), ('Cấp Tỉnh/Thành phố', 0.4)]
+            },
+            {
+                'MaTieuChi': 'aca_point_5',
+                'MoTa': 'Có sản phẩm sáng tạo được cấp bằng sáng chế, giấy phép xuất bản hoặc giải thưởng cấp Trường trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': 0.4,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 6,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'aca_point_6',
+                'MoTa': 'Đạt giải thưởng trong các cuộc thi nghiên cứu khoa học, khởi nghiệp, ý tưởng sáng tạo từ cấp Trường trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 7,
+                'diem_cap_do': [('Cấp Trường/Phường/Xã', 0.2), ('Cấp ĐHĐN', 0.3), ('Cấp Tỉnh/Thành phố', 0.4)]
+            },
+            {
+                'MaTieuChi': 'aca_point_7',
+                'MoTa': 'Điểm trung bình học tập trong năm học đạt từ 3.4/4.0 trở lên',
+                'LoaiTieuChi': 'Cong', 'Diem': 0.1,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 8,
+                'diem_cap_do': []
             },
         ]
     },
     {
         'TenNhom': 'Thể lực tốt',
-        'MoTa': 'Tiêu chí đánh giá về sức khỏe, thể dục thể thao',
+        'MoTa': 'Tiêu chí đánh giá về sức khỏe, thể dục thể thao (Đạt ít nhất 1 yêu cầu)',
         'ThuTu': 3,
         'tieu_chi': [
             {
-                'MoTa': 'Điểm trung bình môn Thể dục đạt từ 5.0/10 trở lên',
+                'MaTieuChi': 'phy_hard_1',
+                'MoTa': 'Điểm trung bình môn thể dục đạt từ loại Khá trở lên (7.0/10.0)',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Đạt giải trong các cuộc thi thể dục thể thao',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'MaTieuChi': 'phy_hard_2',
+                'MoTa': 'Đạt danh hiệu "Sinh viên khỏe", "Thanh niên khỏe" cấp Trường trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 2,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'diem_cap_do': []
             },
             {
-                'MoTa': 'Tham gia hiến máu tình nguyện',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
-                'CoSoQuyetDinh': False, 'SoLuongToiThieu': 1, 'ThuTu': 3,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                ]
+                'MaTieuChi': 'phy_hard_3',
+                'MoTa': 'Tham gia và đạt GCN tại các hoạt động, phong trào thể thao từ cấp Liên chi Hội trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'phy_hard_4',
+                'MoTa': 'Là thành viên đội tuyển thi đấu nội dung thể thao cấp ĐHĐN trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'phy_hard_5',
+                'MoTa': 'Tham gia và đạt giải tại các hoạt động thể thao phong trào từ cấp Trường trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
+                'diem_cap_do': []
             },
         ]
     },
@@ -155,38 +209,50 @@ DATA = [
     },
     {
         'TenNhom': 'Hội nhập tốt',
-        'MoTa': 'Tiêu chí đánh giá về kỹ năng hội nhập, ngoại ngữ, hội đoàn',
+        'MoTa': 'Tiêu chí đánh giá về kỹ năng hội nhập, ngoại ngữ (Đạt ít nhất 1 yêu cầu)',
         'ThuTu': 5,
         'tieu_chi': [
             {
-                'MoTa': 'Có chứng chỉ ngoại ngữ từ B1 trở lên hoặc GPA ngoại ngữ ≥ 2.0/4.0',
+                'MaTieuChi': 'int_hard_1',
+                'MoTa': 'Chứng chỉ Tiếng Anh trình độ B1 hoặc tương đương trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
-                'MoTa': 'Đạt giải thưởng trong các cuộc thi về kỹ năng, ngoại ngữ, hội nhập',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
-                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 2,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'MaTieuChi': 'int_hard_2',
+                'MoTa': 'Điểm các học phần ngoại ngữ đạt từ 3.0/4.0 trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 2,
+                'diem_cap_do': []
             },
             {
-                'MoTa': 'Tham gia Ban chấp hành Đoàn/Hội cấp Khoa trở lên',
-                'LoaiTieuChi': 'Cong', 'Diem': None,
+                'MaTieuChi': 'int_hard_3',
+                'MoTa': 'Tham gia và đạt ít nhất 01 GCN hoạt động giao lưu quốc tế từ cấp Trường trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
-                'diem_cap_do': [
-                    ('Cấp Khoa/CLB', 0.1),
-                    ('Cấp Trường/Phường/Xã', 0.2),
-                    ('Cấp ĐHĐN', 0.3),
-                    ('Cấp Tỉnh/Thành phố', 0.4),
-                    ('Cấp Trung ương', 0.5),
-                ]
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'int_hard_4',
+                'MoTa': 'Tham gia và đạt giải tại các cuộc thi có sử dụng ngoại ngữ từ cấp Liên chi Hội trở lên',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'int_hard_5',
+                'MoTa': 'Hoàn thành ít nhất 01 khóa trang bị kỹ năng thực hành xã hội',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
+                'diem_cap_do': []
+            },
+            {
+                'MaTieuChi': 'int_hard_6',
+                'MoTa': 'Tham gia tích cực ít nhất 01 hoạt động về hội nhập do cấp Khoa trở lên tổ chức',
+                'LoaiTieuChi': 'Cung', 'Diem': None,
+                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 6,
+                'diem_cap_do': []
             },
         ]
     },
@@ -201,6 +267,24 @@ class Command(BaseCommand):
         created_criteria = 0
         created_scores = 0
 
+        # Chuẩn bị danh sách MaTieuChi hợp lệ để xóa các tiêu chí cũ/trùng
+        valid_ma_tieu_chi = []
+        for group_data in DATA:
+            for tc in group_data['tieu_chi']:
+                valid_ma_tieu_chi.append(tc['MaTieuChi'])
+
+        # Xóa các tiêu chí cũ không có MaTieuChi hoặc MaTieuChi không nằm trong danh sách chuẩn
+        # Chỉ xóa trong các nhóm mà chúng ta đang seed
+        group_names = [g['TenNhom'] for g in DATA]
+        deleted_count, _ = TieuChi.objects.filter(
+            NhomTieuChi__TenNhom__in=group_names
+        ).exclude(
+            MaTieuChi__in=valid_ma_tieu_chi
+        ).delete()
+        
+        if deleted_count > 0:
+            self.stdout.write(self.style.WARNING(f'  ! Đã xóa {deleted_count} tiêu chí cũ/trùng lặp'))
+
         for group_data in DATA:
             tieu_chi_data = group_data.pop('tieu_chi')
             nhom, created = NhomTieuChi.objects.get_or_create(
@@ -212,7 +296,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'  ✓ Nhóm: {nhom.TenNhom}')
 
             for tc_data in tieu_chi_data:
-                diem_cap_do_data = tc_data.pop('diem_cap_do')
+                diem_cap_do_data = tc_data.pop('diem_cap_do', [])
                 tc, tc_created = TieuChi.objects.update_or_create(
                     MaTieuChi=tc_data.get('MaTieuChi'),
                     defaults={

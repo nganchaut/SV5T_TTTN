@@ -113,7 +113,6 @@ const LoginView: React.FC<{ onLogin: (role: 'student' | 'admin', studentId?: str
             <div className="space-y-2">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-between">
                 <span>{role === 'student' ? 'Mã sinh viên / Email Edu' : 'Tên đăng nhập / Email Admin'}</span>
-                {role === 'admin' && isLoginState && <span className="text-orange-500">Dùng "admin" để test</span>}
               </label>
               <div className="relative">
                 <i className="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"></i>

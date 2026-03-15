@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Post } from '../types';
 
-const PostDetailView: React.FC<{ posts: any[] }> = ({ posts }) => {
+const PostDetailView: React.FC<{ posts: Post[] }> = ({ posts }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [post, setPost] = useState<any>(null);
@@ -32,11 +33,11 @@ const PostDetailView: React.FC<{ posts: any[] }> = ({ posts }) => {
     <div className="min-h-screen bg-white">
       {/* Hero section for post */}
       <div className="relative h-[40vh] md:h-[60vh] overflow-hidden">
-        {post.HinhAnh ? (
+        {post.image ? (
           <img 
-            src={post.HinhAnh} 
+            src={post.image} 
             className="w-full h-full object-cover" 
-            alt={post.TieuDe} 
+            alt={post.title} 
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#0a1628] to-[#002b5c] flex items-center justify-center">
@@ -55,11 +56,11 @@ const PostDetailView: React.FC<{ posts: any[] }> = ({ posts }) => {
             <div className="flex items-center gap-3 mb-6">
               <span className="px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase rounded-full">Tin tức</span>
               <span className="text-white/60 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
-                <i className="far fa-calendar"></i> {post.NgayDang}
+                <i className="far fa-calendar"></i> {post.date}
               </span>
             </div>
             <h1 className="text-3xl md:text-6xl font-black text-white uppercase leading-tight font-formal tracking-tight">
-              {post.TieuDe}
+              {post.title}
             </h1>
           </div>
         </div>
@@ -68,7 +69,7 @@ const PostDetailView: React.FC<{ posts: any[] }> = ({ posts }) => {
       {/* Content Section */}
       <div className="max-w-4xl mx-auto px-6 py-16 md:py-24">
         <div className="prose prose-lg max-w-none prose-slate">
-          {post.NoiDung.split('\n').map((para: string, idx: number) => (
+          {(post.content || '').split('\n').map((para: string, idx: number) => (
             para.trim() && (
               <p key={idx} className="text-gray-700 leading-relaxed mb-6 font-medium text-lg">
                 {para}

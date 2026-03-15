@@ -38,9 +38,16 @@ export interface Evidence {
   type: EvidenceType;
   decisionNumber?: string; 
   qty?: number; // Số lượng (ví dụ: số ngày tình nguyện, số lần hiến máu)
-  fileUrl: string;
-  file?: File;
+  fileUrl: string; // File chính (compatibility)
+  file?: File; // File đơn (legacy)
+  files?: File[]; // Danh sách file mới chọn
   fileName: string;
+  danh_sach_file?: Array<{
+    id: number;
+    DuongDanFile: string;
+    TenFile: string;
+    FileUrl: string;
+  }>;
   date: string;
   points: number; 
   isHardCriterion: boolean;
@@ -89,6 +96,16 @@ export interface FeaturedFace {
   name: string;
   achievement: string;
   content: string;
+  image: string;
+  imageFile?: File;
+}
+
+export interface Post {
+  id: string;
+  title: string;
+  content: string;
+  date: string;
+  status: string;
   image: string;
   imageFile?: File;
 }

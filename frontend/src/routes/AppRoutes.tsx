@@ -6,12 +6,12 @@ import StudentDashboard from '../pages/StudentDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import PostDetailView from '../pages/PostDetailView';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { StudentProfile, FeaturedFace, CriterionType, Evidence, FieldVerification } from '../types';
+import { StudentProfile, FeaturedFace, CriterionType, Evidence, FieldVerification, Post } from '../types';
 
 interface AppRoutesProps {
   userRole: 'student' | 'admin' | 'guest';
   faces: FeaturedFace[];
-  posts: any[];
+  posts: Post[];
   student: StudentProfile;
   students: StudentProfile[];
   onLogin: (role: 'student' | 'admin', studentId?: string) => void;

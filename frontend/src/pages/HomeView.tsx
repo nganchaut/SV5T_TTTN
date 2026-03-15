@@ -135,7 +135,7 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {faces.slice(0, 3).map((f, i) => (
+            {faces.map((f, i) => (
               <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all group backdrop-blur-sm">
                 <div className="flex items-center gap-5 mb-6">
                   <img src={f.image || 'https://via.placeholder.com/300x400?text=Sinh+Vien+5+Tot'} className="w-20 h-20 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all" alt={f.name} />
@@ -153,7 +153,7 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
     )}
 
     {/* Latest Posts Section */}
-    {posts.filter(p => p.TrangThai === 'published').length > 0 && (
+    {posts.filter(p => p.status === 'published').length > 0 && (
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="flex justify-between items-end mb-12">
           <div>
@@ -162,11 +162,11 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.filter(p => p.TrangThai === 'published').slice(0, 6).map((post, i) => (
+          {posts.filter(p => p.status === 'published').slice(0, 6).map((post, i) => (
             <div key={i} className="bg-white border rounded-2xl overflow-hidden hover:shadow-2xl transition-all group flex flex-col">
               <div className="aspect-video bg-gray-100 overflow-hidden relative">
-                {post.HinhAnh ? (
-                  <img src={post.HinhAnh} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={post.TieuDe} />
+                {post.image ? (
+                  <img src={post.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={post.title} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300">
                     <i className="fas fa-image text-4xl"></i>
@@ -180,10 +180,10 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
                 <div onClick={() => onNavigate(`/posts/${post.id}`)} className="cursor-pointer">
                   <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4">
                     <i className="far fa-calendar"></i>
-                    <span>{post.NgayDang}</span>
+                    <span>{post.date}</span>
                   </div>
-                  <h3 className="text-lg font-black text-[#002b5c] uppercase leading-tight group-hover:text-orange-600 transition-colors line-clamp-2 mb-4">{post.TieuDe}</h3>
-                  <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed mb-6">{post.NoiDung}</p>
+                  <h3 className="text-lg font-black text-[#002b5c] uppercase leading-tight group-hover:text-orange-600 transition-colors line-clamp-2 mb-4">{post.title}</h3>
+                  <p className="text-gray-500 text-sm font-medium line-clamp-3 leading-relaxed mb-6">{post.content}</p>
                 </div>
                 <button 
                   onClick={() => onNavigate(`/posts/${post.id}`)}

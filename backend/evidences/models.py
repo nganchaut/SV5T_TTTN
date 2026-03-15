@@ -40,6 +40,7 @@ class MinhChung(models.Model):
     SoQuyetDinh = models.CharField(max_length=100, blank=True, null=True)
     DuongDanFile = models.FileField(upload_to=minh_chung_upload_path, blank=True, null=True)
     TenFile = models.CharField(max_length=200, blank=True, null=True)
+    SoLuong = models.IntegerField(default=1)
     NgayNop = models.DateField(auto_now_add=True)
     Diem = models.FloatField(default=0)
     TrangThai = models.CharField(max_length=30, choices=TRANG_THAI_CHOICES, default='Pending')
@@ -93,3 +94,23 @@ class MinhChung(models.Model):
             return POINT_MATRIX.get(self.CapDo, {}).get(self.LoaiMinhChung, self.TieuChi.Diem or 0)
         except Exception:
             return self.TieuChi.Diem or 0
+
+class MinhChungFile(models.Model):
+    MinhChung = models.ForeignKey(
+        MinhChung, on_delete=models.CASCADE, related_name='danh_sach_file'
+    )
+    DuongDanFile = models.FileField(upload_to=minh_chung_upload_path)
+    TenFile = models.CharField(max_length=255, blank=True, null=True)
+    NgayTao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'MinhChungFile'
+        verbose_name = 'Tệp minh chứng'
+
+    def __str__(self):
+        return f"File of {self.MinhChung.TenMinhChung}"
+
+    def save(self, *args, **kwargs):
+        if self.DuongDanFile and not self.TenFile:
+            self.TenFile = os.path.basename(self.DuongDanFile.name)
+        super().save(*args, **kwargs)

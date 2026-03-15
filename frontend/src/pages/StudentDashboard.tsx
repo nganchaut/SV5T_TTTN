@@ -1,15 +1,8 @@
 import React, { useState } from 'react';
 import { CriterionType, Evidence, StudentProfile, EvidenceLevel, EvidenceType, FieldVerification } from '../types';
-import { SUB_CRITERIA, FACES_OF_THE_YEAR as INITIAL_FACES } from '../constants';
+import { SUB_CRITERIA, POINT_MATRIX } from '../constants';
 import EvidenceForm from '../components/EvidenceForm';
-
-const POINT_MATRIX: Record<EvidenceLevel, Record<EvidenceType, number>> = {
-  [EvidenceLevel.KHOA]: { [EvidenceType.NO_DECISION]: 0.1, [EvidenceType.WITH_DECISION]: 0.1, [EvidenceType.GK]: 0.1 },
-  [EvidenceLevel.TRUONG]: { [EvidenceType.NO_DECISION]: 0.2, [EvidenceType.WITH_DECISION]: 0.3, [EvidenceType.GK]: 0.4 },
-  [EvidenceLevel.DHDN]: { [EvidenceType.NO_DECISION]: 0.3, [EvidenceType.WITH_DECISION]: 0.4, [EvidenceType.GK]: 0.5 },
-  [EvidenceLevel.TINH_TP]: { [EvidenceType.NO_DECISION]: 0.4, [EvidenceType.WITH_DECISION]: 0.5, [EvidenceType.GK]: 0.6 },
-  [EvidenceLevel.TW]: { [EvidenceType.NO_DECISION]: 0.5, [EvidenceType.WITH_DECISION]: 0.6, [EvidenceType.GK]: 0.7 },
-};
+import { formatUrl } from '../utils/mapper';
 
 const STEPS = [
   CriterionType.ETHICS,
@@ -61,15 +54,16 @@ export const checkHardMet = (cat: CriterionType, student: StudentProfile, criter
   const results = hardCriteria.map((tc: any) => {
     const slug = tc.MaTieuChi;
     
-    // Profile-based checks
-    if (slug === 'eth_hard_1') return student.trainingPoints >= 80;
+    // Profile-based checks + Evidence requirement
+    if (slug === 'eth_hard_1') return student.trainingPoints >= 80 && approvedEvs.some(e => e.subCriterionId === slug);
     if (slug === 'eth_hard_2') return student.noViolation;
-    if (slug === 'aca_hard_1') return student.gpa >= 3.2;
-    if (slug === 'phy_hard_1') return student.peScore >= 7.0;
+    if (slug === 'aca_hard_1') return student.gpa >= 3.2 && approvedEvs.some(e => e.subCriterionId === slug);
+    if (slug === 'phy_hard_1') return student.peScore >= 7.0 && approvedEvs.some(e => e.subCriterionId === slug);
     
     // Education Level/English (Integration)
     if (slug === 'int_hard_1' || slug === 'int_hard_2') {
-       return (['B1', 'B2'].includes(student.englishLevel) || student.englishGpa >= 3.0);
+       const profileMet = (['B1', 'B2', 'C1', 'C2'].includes(student.englishLevel) || student.englishGpa >= 3.0);
+       return profileMet && approvedEvs.some(e => e.subCriterionId === slug);
     }
 
     // Special logic for slug-based evidence (if any)
@@ -80,31 +74,38 @@ export const checkHardMet = (cat: CriterionType, student: StudentProfile, criter
     // Quantity rules for Volunteer
     if (isVolunteer) {
       const matchingEvs = approvedEvs.filter(e => e.subCriterionId === slug);
-      const count = matchingEvs.length;
-      const gkCount = matchingEvs.filter(e => e.type === EvidenceType.GK).length;
-
-      if (slug === 'vol_hard_1') return count >= 1; // Chiến dịch: 1 GCN
-      if (slug === 'vol_hard_2') return count >= 3; // 3 ngày: 3 GCN
+      // BUG FIX: Sum up quantities instead of just counting records
+      const totalQty = matchingEvs.reduce((sum, e) => sum + (e.qty || 1), 0);
+      
+      if (slug === 'vol_hard_1') return totalQty >= 1; // Chiến dịch: 1 GCN
+      if (slug === 'vol_hard_2') return totalQty >= 3; // 3 ngày: 3 GCN
       if (slug === 'vol_hard_3') {
         const validGK = matchingEvs.filter(e => 
           e.type === EvidenceType.GK && 
           e.level !== EvidenceLevel.KHOA // Cấp trường trở lên
-        ).length;
-        return validGK >= 1;
+        );
+        const gkQty = validGK.reduce((sum, e) => sum + (e.qty || 1), 0);
+        return gkQty >= 1;
       }
       if (slug === 'vol_hard_4') {
         // Hiến máu: 2 GCN tại DUE (TRUONG) hoặc 3 GCN tổng cộng
-        const atDue = matchingEvs.filter(e => e.level === EvidenceLevel.TRUONG).length;
-        return atDue >= 2 || count >= 3;
+        const atDueEvs = matchingEvs.filter(e => e.level === EvidenceLevel.TRUONG);
+        const atDueQty = atDueEvs.reduce((sum, e) => sum + (e.qty || 1), 0);
+        return atDueQty >= 2 || totalQty >= 3;
       }
-      return count >= 1;
+      return totalQty >= 1;
     }
 
     // Default: Check if any approved evidence exists for this specific TC ID
     return approvedEvs.some(e => e.subCriterionId === tc.MaTieuChi);
   });
 
-  return isVolunteer ? results.some(r => !!r) : results.every(r => !!r);
+  // Ethics and Academic require ALL hard criteria to be met
+  // Physical, Volunteer, and Integration only require ONE of the hard criteria to be met
+  if (cat === CriterionType.ETHICS || cat === CriterionType.ACADEMIC) {
+    return results.every(r => !!r);
+  }
+  return results.some(r => !!r);
 };
 
 const StudentDashboard: React.FC<{
@@ -492,7 +493,7 @@ const StudentDashboard: React.FC<{
                         alert('Không tìm thấy file đính kèm hợp lệ!');
                         return;
                      }
-                     const url = ev.fileUrl.startsWith('http') ? ev.fileUrl : `http://localhost:8000${ev.fileUrl.startsWith('/') ? '' : '/'}${ev.fileUrl}`;
+                     const url = formatUrl(ev.fileUrl);
                      window.open(url, '_blank');
                   }} 
                   className="px-5 py-2.5 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md"
@@ -619,11 +620,14 @@ const StudentDashboard: React.FC<{
     const hardSubsRaw = currentGroup?.tieu_chi?.filter((tc: any) => tc.LoaiTieuChi === 'Cung') || [];
     const softSubsRaw = currentGroup?.tieu_chi?.filter((tc: any) => tc.LoaiTieuChi === 'Cong') || [];
 
-    const profileBasedSlugs = ['eth_hard_1', 'eth_hard_2', 'eth_point_1', 'eth_point_5', 'aca_hard_1', 'aca_point_7', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
+    // Tiêu chí hiển thị ô nhập liệu (bên trái)
+    const profileInputSlugs = ['eth_hard_1', 'eth_hard_2', 'aca_hard_1', 'phy_hard_1', 'int_hard_1', 'int_hard_2'];
     
-    // Separate hard into Profile vs Uploads
-    const hardProfileSlugs = hardSubsRaw.filter((tc: any) => profileBasedSlugs.includes(tc.MaTieuChi));
-    const hardUploads = hardSubsRaw.filter((tc: any) => !profileBasedSlugs.includes(tc.MaTieuChi));
+    // Tiêu chí KHÔNG cần nộp minh chứng (chỉ dựa trên profile)
+    const noEvidenceSlugs = ['eth_hard_2', 'eth_point_5', 'aca_point_7'];
+    
+    const hardProfileSlugs = hardSubsRaw.filter((tc: any) => profileInputSlugs.includes(tc.MaTieuChi));
+    const hardUploads = hardSubsRaw.filter((tc: any) => !noEvidenceSlugs.includes(tc.MaTieuChi));
 
     return (
       <div className="animate-fade-in space-y-8">
@@ -728,14 +732,29 @@ const StudentDashboard: React.FC<{
                       {subEvs.length > 0 && (
                         <div className="mt-3 space-y-2">
                           {subEvs.map(ev => (
-                            <div key={ev.id} className="p-2.5 bg-gray-50 border rounded-lg flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-gray-900 truncate max-w-[200px]">{ev.name}</span>
-                              <div className="flex items-center gap-2">
-                                {!isLocked && (
-                                  <>
-                                    <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-400 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
-                                    <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-400 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
-                                  </>
+                            <div key={ev.id} className="p-3 bg-gray-50 border rounded-lg space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-gray-900 truncate max-w-[200px]">{ev.name}</span>
+                                <div className="flex items-center gap-2">
+                                  {!isLocked && (
+                                    <>
+                                      <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-400 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
+                                      <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-400 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {ev.danh_sach_file && ev.danh_sach_file.length > 0 ? (
+                                  ev.danh_sach_file.map((f, fIdx) => (
+                                    <a key={fIdx} href={f.FileUrl} target="_blank" rel="noreferrer" className="text-[9px] text-blue-600 hover:underline flex items-center gap-1 bg-white px-2 py-1 border rounded">
+                                      <i className="fas fa-file-image"></i> {f.TenFile.length > 15 ? f.TenFile.substring(0, 12) + '...' : f.TenFile}
+                                    </a>
+                                  ))
+                                ) : (
+                                  <a href={ev.fileUrl} target="_blank" rel="noreferrer" className="text-[9px] text-blue-600 hover:underline flex items-center gap-1">
+                                    <i className="fas fa-file-image"></i> {ev.fileName || 'Xem file'}
+                                  </a>
                                 )}
                               </div>
                             </div>
@@ -789,19 +808,34 @@ const StudentDashboard: React.FC<{
                     {subEvs.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {subEvs.map(ev => (
-                          <div key={ev.id} className="p-2.5 bg-gray-50 border rounded-lg flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-bold text-gray-900">{ev.name} {ev.qty ? <span className="text-orange-600 font-black">({ev.qty})</span> : ''}</span>
-                              <span className="text-[9px] font-black text-orange-600 mt-0.5">+{ev.points}đ</span>
+                          <div key={ev.id} className="p-3 bg-gray-50 border rounded-lg space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col text-left">
+                                <span className="text-[10px] font-bold text-gray-900">{ev.name} {ev.qty ? <span className="text-orange-600 font-black">({ev.qty})</span> : ''}</span>
+                                <span className="text-[9px] font-black text-orange-600 mt-0.5">+{ev.points}đ</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!isLocked && (
+                                  <>
+                                    <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-300 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
+                                    <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {!isLocked && (
-                                <>
-                                  <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-300 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
-                                  <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
-                                </>
-                              )}
-                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {ev.danh_sach_file && ev.danh_sach_file.length > 0 ? (
+                                  ev.danh_sach_file.map((f, fIdx) => (
+                                    <a key={fIdx} href={f.FileUrl} target="_blank" rel="noreferrer" className="text-[9px] text-blue-600 hover:underline flex items-center gap-1 bg-white px-2 py-1 border rounded">
+                                      <i className="fas fa-file-image"></i> {f.TenFile.length > 15 ? f.TenFile.substring(0, 12) + '...' : f.TenFile}
+                                    </a>
+                                  ))
+                                ) : (
+                                  <a href={ev.fileUrl} target="_blank" rel="noreferrer" className="text-[9px] text-blue-600 hover:underline flex items-center gap-1">
+                                    <i className="fas fa-file-image"></i> {ev.fileName || 'Xem file'}
+                                  </a>
+                                )}
+                              </div>
                           </div>
                         ))}
                       </div>
@@ -853,10 +887,6 @@ const StudentDashboard: React.FC<{
             <div>
               <h1 className="text-3xl font-black text-[#0054a6] uppercase font-formal tracking-tighter">{student.fullName}</h1>
               <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1 italic">Mã sinh viên: {student.studentId} • {student.faculty}</p>
-            </div>
-            <div className={`text-right hidden sm:block px-5 py-3 rounded-xl shadow-sm border ${allHardMet ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-100'}`}>
-              <p className={`text-[8px] font-black uppercase tracking-[0.2em] mb-0.5 ${allHardMet ? 'text-green-800' : 'text-blue-900'}`}>Tiêu chí Đạt</p>
-              <p className={`text-2xl font-black font-formal ${allHardMet ? 'text-green-700' : 'text-blue-900'}`}>{metCount}<span className={`text-sm ${allHardMet ? 'text-green-500' : 'text-blue-400/80'}`}> / 5</span></p>
             </div>
           </div>
           {/* Step progress */}
