@@ -76,9 +76,9 @@ class SinhVien(models.Model):
         # VD: Đảng viên, GPA cao, Điểm rèn luyện cao
         # Tìm các tiêu chí có MaTieuChi tương ứng để lấy điểm động từ DB
         bonus_config = {
-            'dang_vien': {'MaTieuChi': 'eth_point_5', 'active': self.LaDangVien},
+            'dang_vien': {'MaTieuChi': 'eth_point_1', 'active': self.LaDangVien},
             'gpa_cao': {'MaTieuChi': 'aca_point_7', 'active': self.DiemTBC >= 3.4},
-            'drl_cao': {'MaTieuChi': 'eth_point_1', 'active': self.DiemRenLuyen >= 90},
+            'drl_cao': {'MaTieuChi': 'eth_point_5', 'active': self.DiemRenLuyen >= 90},
         }
         
         for key, cfg in bonus_config.items():

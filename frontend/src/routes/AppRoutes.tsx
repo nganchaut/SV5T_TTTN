@@ -19,6 +19,7 @@ interface AppRoutesProps {
   // Student Props
   addEvidence: (type: CriterionType, ev: Evidence) => void;
   removeEvidence: (type: CriterionType, id: string) => void;
+  updateEvidence: (type: CriterionType, id: string, ev: Evidence) => void;
   updateProfile: (data: Partial<StudentProfile>) => void;
   updateEvidenceExplanation: (cat: CriterionType, id: string, explanation: string) => void;
   updateFieldExplanation: (field: keyof StudentProfile['verifications'], explanation: string) => void;
@@ -50,6 +51,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   onNavigate,
   addEvidence,
   removeEvidence,
+  updateEvidence,
   updateProfile,
   updateEvidenceExplanation,
   updateFieldExplanation,
@@ -80,6 +82,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             student={student}
             addEvidence={addEvidence}
             removeEvidence={removeEvidence}
+            updateEvidence={updateEvidence}
             updateProfile={updateProfile}
             updateEvidenceExplanation={updateEvidenceExplanation}
             updateFieldExplanation={updateFieldExplanation}

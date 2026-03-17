@@ -122,7 +122,7 @@ const StudentDashboard: React.FC<{
   criteriaGroups: any[];
 }> = ({ student, addEvidence, removeEvidence, updateEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit, criteriaGroups }) => {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string, editingEvidence?: Evidence } | null>(null);
+  const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string, subId: string, editingEvidence?: Evidence } | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
 
@@ -273,12 +273,13 @@ const StudentDashboard: React.FC<{
       };
       return catMap[g.TenNhom] === type;
     });
-    const sub = group?.tieu_chi.find((tc: any) => String(tc.id) === ev.subCriterionId);
+    const sub = group?.tieu_chi.find((tc: any) => String(tc.MaTieuChi) === ev.subCriterionId);
     
     setAddingTo({
       type,
       isHard,
       subName: sub?.MoTa || '',
+      subId: ev.subCriterionId,
       editingEvidence: ev
     });
   };
@@ -787,8 +788,8 @@ const StudentDashboard: React.FC<{
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Không có tiêu chí cộng điểm nào</p>
                </div>
             ) : (
-              softSubsRaw.map((sub: any) => {
-                const subEvs = student.evidences[cat].filter(e => e.subCriterionId === sub.MaTieuChi);
+              softSubsRaw.filter((sub: any) => !['eth_point_5', 'aca_point_7'].includes(sub.MaTieuChi)).map((sub: any) => {
+              const subEvs = (student.evidences[cat] || []).filter(e => e.subCriterionId === sub.MaTieuChi);
                 return (
                   <div key={sub.MaTieuChi} className={`p-4 border-2 transition-all bg-white rounded-lg shadow-sm ${subEvs.length > 0 ? 'border-orange-100' : 'border-gray-100'}`}>
                     <div className="flex justify-between items-start gap-4">

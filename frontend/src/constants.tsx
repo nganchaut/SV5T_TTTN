@@ -47,7 +47,6 @@ export const SUB_CRITERIA: Record<CriterionType, SubCriterion[]> = {
     { id: 'int_hard_2', description: 'Điểm các học phần ngoại ngữ tích lũy đạt từ 3.0/4.0 trở lên', isHard: true },
     { id: 'int_hard_3', description: 'Tham gia và đạt ít nhất 01 GCN hoạt động giao lưu quốc tế từ cấp Trường trở lên', isHard: true },
     { id: 'int_hard_4', description: 'Tham gia và đạt giải tại các cuộc thi có sử dụng ngoại ngữ từ cấp Liên chi Hội trở lên', isHard: true },
-    { id: 'int_hard_5', description: 'Hoàn thành ít nhất 01 khóa trang bị kỹ năng thực hành xã hội', isHard: true },
     { id: 'int_hard_6', description: 'Tham gia tích cực ít nhất 01 hoạt động về hội nhập do cấp Khoa trở lên tổ chức', isHard: true }
   ]
 };

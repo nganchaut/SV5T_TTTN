@@ -81,6 +81,24 @@ const AdminDashboard: React.FC<{
   const [managedUsers, setManagedUsers] = useState<any[]>([]);
   const [articleForm, setArticleForm] = useState<{ mode: 'add' | 'edit', id?: string, title: string, content: string, status: string, image: string, imageFile?: File } | null>(null);
 
+  const [feedbackModal, setFeedbackModal] = useState<{
+    show: boolean;
+    type: 'Approved' | 'Rejected' | 'NeedsExplanation';
+    title: string;
+    message: string;
+    requireFeedback: boolean;
+    onSubmit: (feedback?: string) => void;
+  }>({
+    show: false,
+    type: 'Approved',
+    title: '',
+    message: '',
+    requireFeedback: false,
+    onSubmit: () => {}
+  });
+
+  const [modalFeedback, setModalFeedback] = useState('');
+
   const [userForm, setUserForm] = useState<{
     show: boolean;
     data: {
@@ -109,24 +127,54 @@ const AdminDashboard: React.FC<{
 
   const handleAction = (status: StudentProfile['status']) => {
     const actionTxt = status === 'Approved' ? 'CÔNG NHẬN DANH HIỆU' : status === 'Processing' ? 'GỬI YÊU CẦU GIẢI TRÌNH' : 'TỪ CHỐI HỒ SƠ';
-    if (!window.confirm(`Xác nhận thực hiện hành động: ${actionTxt}?`)) return;
-    let fb = '';
-    if (status === 'Rejected') { fb = window.prompt('Lý do hồ sơ KHÔNG ĐẠT:') || ''; if (!fb) return; }
-    else if (status === 'Processing') { fb = window.prompt(`Nhập lời nhắn giải trình gửi đến SV ${selectedStudent.fullName}:`) || 'Vui lòng kiểm tra và giải trình các mục Admin đã đánh dấu.'; }
-    onUpdateStatus(status, fb);
-    setIsReviewing(false);
+    
+    setModalFeedback(status === 'Processing' ? 'Vui lòng kiểm tra và giải trình các mục Admin đã đánh dấu.' : '');
+    setFeedbackModal({
+      show: true,
+      type: status as any,
+      title: actionTxt,
+      message: `Bạn đang thực hiện hành động: ${actionTxt} cho sinh viên ${selectedStudent.fullName}.`,
+      requireFeedback: status === 'Rejected' || status === 'Processing',
+      onSubmit: (feedback) => {
+        onUpdateStatus(status, feedback);
+        setIsReviewing(false);
+        setFeedbackModal(prev => ({ ...prev, show: false }));
+      }
+    });
   };
 
   const handleEvidenceAction = (cat: CriterionType, id: string, action: 'Approved' | 'Rejected' | 'NeedsExplanation') => {
-    let feedback = '';
-    if (action === 'Rejected' || action === 'NeedsExplanation') { feedback = window.prompt(action === 'Rejected' ? 'Lý do từ chối:' : 'Nội dung cần giải trình:') || ''; if (!feedback && action === 'Rejected') return; }
-    onUpdateEvidenceStatus(cat, id, action, feedback);
+    const actionTxt = action === 'Approved' ? 'DUYỆT MINH CHỨNG' : action === 'Rejected' ? 'TỪ CHỐI MINH CHỨNG' : 'YÊU CẦU GIẢI TRÌNH';
+    
+    setModalFeedback('');
+    setFeedbackModal({
+      show: true,
+      type: action,
+      title: actionTxt,
+      message: `Bạn đang thực hiện hành động: ${actionTxt}.`,
+      requireFeedback: action === 'Rejected' || action === 'NeedsExplanation',
+      onSubmit: (feedback) => {
+        onUpdateEvidenceStatus(cat, id, action, feedback);
+        setFeedbackModal(prev => ({ ...prev, show: false }));
+      }
+    });
   };
 
   const handleManualDataVerify = (action: 'Approved' | 'Rejected' | 'NeedsExplanation', fieldKey: keyof StudentProfile['verifications'], context: string) => {
-    let feedback = '';
-    if (action === 'Rejected' || action === 'NeedsExplanation') { feedback = window.prompt(`Lý do phản hồi cho [${context}]:`) || ''; if (!feedback && action === 'Rejected') return; }
-    onUpdateFieldVerification(fieldKey, action, feedback);
+    const actionTxt = action === 'Approved' ? 'XÁC NHẬN ĐẠT' : action === 'Rejected' ? 'XÁC NHẬN KHÔNG ĐẠT' : 'YÊU CẦU GIẢI TRÌNH';
+    
+    setModalFeedback('');
+    setFeedbackModal({
+      show: true,
+      type: action,
+      title: actionTxt,
+      message: `Cập nhật trạng thái xác minh cho mục [${context}].`,
+      requireFeedback: action === 'Rejected' || action === 'NeedsExplanation',
+      onSubmit: (feedback) => {
+        onUpdateFieldVerification(fieldKey, action, feedback);
+        setFeedbackModal(prev => ({ ...prev, show: false }));
+      }
+    });
   };
 
   // Featured Faces Management
@@ -151,13 +199,71 @@ const AdminDashboard: React.FC<{
   };
 
   const handleDeleteFace = (id: string) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa gương mặt này?')) {
-      onDeleteFace(id);
-    }
+    setFeedbackModal({
+      show: true,
+      type: 'Rejected',
+      title: 'XÓA GƯƠNG MẶT',
+      message: 'Bạn có chắc chắn muốn xóa gương mặt này? Hành động này không thể hoàn tác.',
+      requireFeedback: false,
+      onSubmit: () => {
+        onDeleteFace(id);
+        setFeedbackModal(prev => ({ ...prev, show: false }));
+      }
+    });
   };
 
   const openAddFace = () => setFaceForm({ mode: 'add', name: '', achievement: '', content: '', image: '' });
   const openEditFace = (face: FeaturedFace) => setFaceForm({ mode: 'edit', id: face.id, name: face.name, achievement: face.achievement, content: face.content, image: face.image });
+
+  const renderFeedbackModal = () => {
+    if (!feedbackModal.show) return null;
+
+    return (
+      <div className="fixed inset-0 z-[2000] bg-blue-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-up">
+          <div className={`px-8 py-6 text-white flex justify-between items-center ${feedbackModal.type === 'Approved' ? 'bg-green-600' : feedbackModal.type === 'Rejected' ? 'bg-red-600' : 'bg-orange-500'}`}>
+            <div>
+              <h3 className="text-lg font-black uppercase tracking-tight">{feedbackModal.title}</h3>
+              <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Xác nhận hành động quản trị</p>
+            </div>
+            <button onClick={() => setFeedbackModal(prev => ({ ...prev, show: false }))} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"><i className="fas fa-times"></i></button>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <p className="text-sm font-medium text-gray-600 leading-relaxed">{feedbackModal.message}</p>
+            
+            {feedbackModal.requireFeedback && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Lý do / Nội dung phản hồi</label>
+                <textarea 
+                  autoFocus
+                  value={modalFeedback}
+                  onChange={e => setModalFeedback(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-medium focus:border-blue-900 outline-none transition-all h-32"
+                  placeholder="Nhập nội dung tại đây..."
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button 
+                onClick={() => setFeedbackModal(prev => ({ ...prev, show: false }))}
+                className="px-6 py-3 text-gray-400 font-black text-[9px] uppercase tracking-widest hover:text-gray-600 transition-all"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={() => feedbackModal.onSubmit(modalFeedback)}
+                className={`px-10 py-3 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all shadow-xl ${feedbackModal.type === 'Approved' ? 'bg-green-600 hover:bg-green-700 shadow-green-600/10' : feedbackModal.type === 'Rejected' ? 'bg-red-600 hover:bg-red-700 shadow-red-600/10' : 'bg-orange-500 hover:bg-orange-600 shadow-orange-500/10'}`}
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderFaces = () => (
     <div className="space-y-6 animate-fade-in">
@@ -341,8 +447,11 @@ const AdminDashboard: React.FC<{
       return { name: f, total: sInF.length, approved: appInF };
     });
 
-    // Top students
-    const topStudents = [...students].sort((a, b) => b.totalScore - a.totalScore).slice(0, 5);
+    // Top students: Exclude rejected profiles
+    const topStudents = [...students]
+      .filter(s => s.status !== 'Rejected')
+      .sort((a, b) => b.totalScore - a.totalScore)
+      .slice(0, 5);
 
     return (
       <div className="space-y-8 animate-fade-in">
@@ -501,24 +610,34 @@ const AdminDashboard: React.FC<{
       const updatedGroups = await adminService.getCriteriaGroups();
       setCriteriaGroups(updatedGroups);
       setCriteriaForm(null);
-      window.alert('✅ Đã cập nhật tiêu chí thành công!');
+      toast.success('Đã cập nhật tiêu chí thành công!');
     } catch (error) {
       console.error(error);
-      window.alert('❌ Lỗi khi cập nhật tiêu chí!');
+      toast.error('Lỗi khi cập nhật tiêu chí!');
     }
   };
 
   const handleDeleteCriterion = async (cat: string, id: string) => {
-    if (!window.confirm('Xác nhận xóa tiêu chí này?')) return;
-    try {
-      await adminService.deleteTieuChi(Number(id));
-      const updatedGroups = await adminService.getCriteriaGroups();
-      setCriteriaGroups(updatedGroups);
-      window.alert('✅ Đã xóa tiêu chí!');
-    } catch (error) {
-      window.alert('❌ Lỗi khi xóa tiêu chí!');
-    }
+    setFeedbackModal({
+      show: true,
+      type: 'Rejected',
+      title: 'XÓA TIÊU CHÍ',
+      message: 'Bạn có chắc chắn muốn xóa tiêu chí này?',
+      requireFeedback: false,
+      onSubmit: async () => {
+        try {
+          await adminService.deleteTieuChi(Number(id));
+          const updatedGroups = await adminService.getCriteriaGroups();
+          setCriteriaGroups(updatedGroups);
+          toast.success('Đã xóa tiêu chí!');
+          setFeedbackModal(prev => ({ ...prev, show: false }));
+        } catch (error) {
+          toast.error('Lỗi khi xóa tiêu chí!');
+        }
+      }
+    });
   };
+
   const handleAddUser = () => {
     setUserForm({
       show: true,
@@ -529,7 +648,7 @@ const AdminDashboard: React.FC<{
   const handleSaveUser = async () => {
     const { data } = userForm;
     if (!data.TenDangNhap || !data.MatKhau || !data.HoTen) {
-      alert("Vui lòng nhập đầy đủ Tên đăng nhập, Mật khẩu và Họ tên.");
+      toast.error("Vui lòng nhập đầy đủ Tên đăng nhập, Mật khẩu và Họ tên.");
       return;
     }
 
@@ -546,21 +665,33 @@ const AdminDashboard: React.FC<{
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (!window.confirm('Xác nhận xóa người dùng này?')) return;
-    try {
-      await adminService.deleteUser(id);
-      window.alert('✅ Đã xóa người dùng!');
-      refreshUsers();
-    } catch (e: any) {
-      alert("Lỗi khi xóa người dùng!");
-    }
+    setFeedbackModal({
+      show: true,
+      type: 'Rejected',
+      title: 'XÓA NGƯỜI DÙNG',
+      message: 'Bạn có chắc chắn muốn xóa người dùng này? Tài khoản và dữ liệu liên quan sẽ bị gỡ bỏ.',
+      requireFeedback: false,
+      onSubmit: async () => {
+        try {
+          await adminService.deleteUser(id);
+          toast.success('Đã xóa người dùng!');
+          refreshUsers();
+          setFeedbackModal(prev => ({ ...prev, show: false }));
+        } catch (e: any) {
+          toast.error("Lỗi khi xóa người dùng!");
+        }
+      }
+    });
   };
+
   const handleAddPost = () => {
     setArticleForm({ mode: 'add', title: '', content: '', status: 'published', image: '' });
   };
+
   const handleEditPost = (post: any) => {
     setArticleForm({ mode: 'edit', id: post.id, title: post.title, content: post.content, status: post.status, image: post.image || '' });
   };
+
   const handleSaveArticle = async () => {
     if (!articleForm) return;
     try {
@@ -574,19 +705,30 @@ const AdminDashboard: React.FC<{
       // Errors handled by hook toasts
     }
   };
+
   const handleTogglePostStatus = async (id: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === 'draft' ? 'published' : 'draft';
       await onUpdatePost(id, { status: newStatus });
     } catch (e) {
-      alert("Đổi trạng thái thất bại!");
+      toast.error("Đổi trạng thái thất bại!");
     }
   };
+
   const handleDeletePost = async (id: string) => {
-    if (!window.confirm('Xác nhận xóa bài viết này?')) return;
-    try {
-      await onDeletePost(id);
-    } catch(e) {}
+    setFeedbackModal({
+      show: true,
+      type: 'Rejected',
+      title: 'XÓA BÀI VIẾT',
+      message: 'Bạn có chắc chắn muốn xóa bài viết này?',
+      requireFeedback: false,
+      onSubmit: async () => {
+        try {
+          await onDeletePost(id);
+          setFeedbackModal(prev => ({ ...prev, show: false }));
+        } catch(e) {}
+      }
+    });
   };
 
   const renderCriteriaInlineForm = () => {
@@ -1183,6 +1325,7 @@ const AdminDashboard: React.FC<{
           </div>
         </div>
       )}
+      {renderFeedbackModal()}
     </div>
   );
 };

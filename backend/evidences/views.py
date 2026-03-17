@@ -50,7 +50,7 @@ class MinhChungListView(APIView):
         serializer.is_valid(raise_exception=True)
         mc = serializer.save(SinhVien=sv)
         sv.tinh_tong_diem() # Cập nhật điểm ngay
-        return Response(MinhChungSerializer(mc, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        return Response(SinhVienProfileSerializer(sv).data, status=status.HTTP_201_CREATED)
 
 
 class MinhChungDetailView(APIView):
@@ -75,7 +75,7 @@ class MinhChungDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         mc.SinhVien.tinh_tong_diem() # Cập nhật điểm
-        return Response(MinhChungSerializer(mc, context={'request': request}).data)
+        return Response(SinhVienProfileSerializer(mc.SinhVien).data)
 
     def delete(self, request, pk):
         mc = self.get_object(pk, request.user)
@@ -86,7 +86,7 @@ class MinhChungDetailView(APIView):
         sv = mc.SinhVien
         mc.delete()
         sv.tinh_tong_diem() # Cập nhật điểm sau xóa
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(SinhVienProfileSerializer(sv).data, status=status.HTTP_200_OK)
 
 
 class MinhChungExplainView(APIView):

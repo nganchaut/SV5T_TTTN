@@ -18,7 +18,7 @@ class MinhChungSerializer(serializers.ModelSerializer):
             'id', 'SinhVien', 'TieuChi',
             'NhomTieuChiTen', 'TieuChiMoTa',
             'TenMinhChung', 'CapDo', 'CapDoDisplay',
-            'LoaiMinhChung', 'SoQuyetDinh',
+            'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
             'DuongDanFile', 'FileUrl', 'TenFile', 'NgayNop',
             'Diem', 'is_tieu_chi_cung',
             'TrangThai', 'TrangThaiDisplay',
@@ -48,7 +48,7 @@ class MinhChungSubmitSerializer(serializers.ModelSerializer):
         model = MinhChung
         fields = [
             'TieuChi', 'TenMinhChung', 'CapDo',
-            'LoaiMinhChung', 'SoQuyetDinh',
+            'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
             'DuongDanFile', 'TenFile',
         ]
 

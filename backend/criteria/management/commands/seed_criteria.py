@@ -137,7 +137,7 @@ DATA = [
         'tieu_chi': [
             {
                 'MaTieuChi': 'phy_hard_1',
-                'MoTa': 'Điểm trung bình môn thể dục đạt từ loại Khá trở lên (7.0/10.0)',
+                'MoTa': 'Điểm trung bình môn thể dục trong năm học 2024-2025 đạt từ loại Khá trở lên (7.0/10.0)',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
@@ -151,21 +151,21 @@ DATA = [
             },
             {
                 'MaTieuChi': 'phy_hard_3',
-                'MoTa': 'Tham gia và đạt GCN tại các hoạt động, phong trào thể thao từ cấp Liên chi Hội trở lên',
+                'MoTa': 'Tham gia và đạt được giấy chứng nhận tại các hoạt động, phong trào thể thao từ cấp Liên chi Hội; Câu lạc bộ, Đội, Nhóm trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
                 'diem_cap_do': []
             },
             {
                 'MaTieuChi': 'phy_hard_4',
-                'MoTa': 'Là thành viên đội tuyển thi đấu nội dung thể thao cấp ĐHĐN trở lên',
+                'MoTa': 'Là thành viên đội tuyển hoặc cá nhân tham gia thi đấu các nội dung thi đấu tại hội thao hoặc các giải thi đấu thể dục thể thao các cấp',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
                 'diem_cap_do': []
             },
             {
                 'MaTieuChi': 'phy_hard_5',
-                'MoTa': 'Tham gia và đạt giải tại các hoạt động thể thao phong trào từ cấp Trường trở lên',
+                'MoTa': 'Tham gia và đạt giải tại các hoạt động thể thao phong trào từ cấp trường trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
                 'diem_cap_do': []
@@ -179,28 +179,28 @@ DATA = [
         'tieu_chi': [
             {
                 'MaTieuChi': 'vol_hard_1',
-                'MoTa': 'Tham gia và đạt GCN 01 trong các chiến dịch: Mùa hè xanh, Tiếp sức mùa thi, Đông - Xuân',
+                'MoTa': 'Tham gia và đạt GCN hoàn thành một trong các chiến dịch: Chiến dịch tình nguyện hè (Chương trình Tiếp sức mùa thi), Chiến dịch Tình nguyện Đông - Xuân tình nguyện',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 1,
                 'diem_cap_do': []
             },
             {
                 'MaTieuChi': 'vol_hard_2',
-                'MoTa': 'Tham gia ít nhất 03 ngày tình nguyện/năm (Cần ít nhất 03 GCN cộng dồn)',
+                'MoTa': 'Tham gia ít nhất 03 ngày tình nguyện/năm (được tính theo số ngày thực tế tham gia các hoạt động tình nguyện cộng dồn và không trùng lặp với các chiến dịch đã nêu trên)',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': 3, 'ThuTu': 2,
                 'diem_cap_do': []
             },
             {
                 'MaTieuChi': 'vol_hard_3',
-                'MoTa': 'Đạt Giấy khen cấp Trường trở lên về hoạt động tình nguyện',
+                'MoTa': 'Được giấy khen cấp Trường trở lên về hoạt động tình nguyện',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
                 'diem_cap_do': []
             },
             {
                 'MaTieuChi': 'vol_hard_4',
-                'MoTa': 'Đạt ít nhất 2 GCN Hiến máu tại DUE (hoặc 3 GCN tại đơn vị ngoài trường)',
+                'MoTa': 'Đạt ít nhất 2 GCN Hiến máu tại trường Đại học Kinh tế (Đối với trường hợp Hiến máu ở đơn vị ngoài trường thì phải đạt ít nhất 3 GCN Hiến máu)',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': False, 'SoLuongToiThieu': 2, 'ThuTu': 4,
                 'diem_cap_do': []
@@ -238,13 +238,6 @@ DATA = [
                 'MoTa': 'Tham gia và đạt giải tại các cuộc thi có sử dụng ngoại ngữ từ cấp Liên chi Hội trở lên',
                 'LoaiTieuChi': 'Cung', 'Diem': None,
                 'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 4,
-                'diem_cap_do': []
-            },
-            {
-                'MaTieuChi': 'int_hard_5',
-                'MoTa': 'Hoàn thành ít nhất 01 khóa trang bị kỹ năng thực hành xã hội',
-                'LoaiTieuChi': 'Cung', 'Diem': None,
-                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 5,
                 'diem_cap_do': []
             },
             {

@@ -2,7 +2,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { CriterionType, EvidenceLevel, EvidenceType, Evidence } from '../types';
 import { SUB_CRITERIA, POINT_MATRIX } from '../constants';
-import { analyzeEvidence } from '../services/geminiService';
 
 interface EvidenceFormProps {
   criterionType: CriterionType;
@@ -24,8 +23,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const [qty, setQty] = useState<number | ''>(initialData?.qty || '');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<{ isSuitable: boolean; suggestedScore: number; reasoning: string } | null>(null);
 
   const availableSubCriteria = useMemo(() => {
     const profileBasedSlugs = [
@@ -58,7 +55,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
         id: tc.MaTieuChi,
         description: tc.MoTa,
         isHard: tc.LoaiTieuChi === 'Cung',
-        minQty: tc.SoLuongToiThieu
+        minQty: tc.SoLuongToiThieu,
+        requireDecision: tc.CoSoQuyetDinh
       }));
   }, [criterionType, isHard, criteriaGroups, propsSubId, subCriterionName]);
 
@@ -68,31 +66,26 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
     if (initialData) return;
     if (propsSubId) {
       setSubCriterionId(propsSubId);
+      const sub = availableSubCriteria.find(sc => sc.id === propsSubId);
+      if (sub?.requireDecision) {
+        setType(EvidenceType.WITH_DECISION);
+      }
     } else if (availableSubCriteria.length > 0 && !subCriterionId) {
-      setSubCriterionId(availableSubCriteria[0].id);
+      const firstSub = availableSubCriteria[0];
+      setSubCriterionId(firstSub.id);
+      if (firstSub.requireDecision) {
+        setType(EvidenceType.WITH_DECISION);
+      }
     }
   }, [propsSubId, availableSubCriteria, initialData]);
 
   const selectedSubCriterion = useMemo(() => availableSubCriteria.find(sc => sc.id === subCriterionId), [availableSubCriteria, subCriterionId]);
   const showQtyInput = selectedSubCriterion?.minQty !== undefined;
 
-  const showDecisionInput = type !== EvidenceType.NO_DECISION;
+  const isSimpleEvidence = (subCriterionId || propsSubId) === 'eth_hard_1' || (subCriterionId || propsSubId) === 'aca_hard_1' || (subCriterionId || propsSubId) === 'int_hard_1';
+  const showDecisionInput = !isSimpleEvidence && (type !== EvidenceType.NO_DECISION || selectedSubCriterion?.requireDecision);
+  const actualShowQtyInput = (subCriterionId || propsSubId) === 'vol_hard_2';
 
-  const handleSmartAnalysis = async () => {
-    if (files.length === 0 || !name) {
-      setError('Vui lòng nhập tên và chọn ít nhất một tệp trước khi phân tích.');
-      return;
-    }
-    setIsAnalyzing(true);
-    setError('');
-    const result = await analyzeEvidence(files[0].name, name);
-    if (result) {
-      setAnalysisResult(result);
-    } else {
-      setError('Không thể phân tích minh chứng lúc này. Vui lòng thử lại.');
-    }
-    setIsAnalyzing(false);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +95,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
     if (!subCriterionId && !propsSubId) { setError('Vui lòng chọn tiêu chí cụ thể.'); return; }
     if (!name.trim()) { setError('Vui lòng nhập tên hoạt động hoặc tên chứng chỉ.'); return; }
     if (showDecisionInput && !decisionNumber.trim()) { setError('Vui lòng nhập số hiệu quyết định hoặc mã số chứng chỉ.'); return; }
-    if (showQtyInput && (qty === '' || isNaN(Number(qty)) || Number(qty) <= 0)) { 
+    if (actualShowQtyInput && (qty === '' || isNaN(Number(qty)) || Number(qty) <= 0)) { 
       setError('Vui lòng nhập số lượng (số ngày/mức độ) hợp lệ (số nguyên dương).'); 
       return; 
     }
@@ -181,51 +174,41 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
               className="flex-1 px-5 py-4 border-2 border-gray-100 font-bold outline-none focus:border-blue-900 text-xs bg-white text-gray-900 shadow-sm" 
               placeholder="VD: GCN Hiến máu lần 2..." 
             />
-            <button 
-              type="button"
-              onClick={handleSmartAnalysis}
-              disabled={isAnalyzing || files.length === 0 || !name}
-              className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest border-2 transition-all ${isAnalyzing ? 'bg-gray-100 text-gray-400 border-gray-100' : 'border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white'}`}
-            >
-              {isAnalyzing ? <i className="fas fa-spinner animate-spin"></i> : <><i className="fas fa-magic mr-2"></i>AI Check</>}
-            </button>
           </div>
         </div>
-
-        {analysisResult && (
-          <div className={`p-5 border-l-4 animate-fade-in ${analysisResult.isSuitable ? 'bg-green-50 border-green-500' : 'bg-orange-50 border-orange-500'}`}>
-            <div className="flex justify-between items-start mb-2">
-              <span className={`text-[9px] font-black uppercase tracking-widest ${analysisResult.isSuitable ? 'text-green-700' : 'text-orange-700'}`}>
-                {analysisResult.isSuitable ? 'Phù hợp' : 'Cần xem xét lại'}
-              </span>
-              <span className="text-[9px] font-black text-blue-900 uppercase">Gợi ý: +{analysisResult.suggestedScore}đ</span>
+        
+        {!isSimpleEvidence && (
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Cấp ban hành</label>
+              <select 
+                value={level} 
+                onChange={(e) => setLevel(e.target.value as EvidenceLevel)} 
+                className="w-full px-5 py-4 border-2 border-gray-100 font-bold bg-white text-xs outline-none text-gray-900 shadow-sm"
+              >
+                {Object.values(EvidenceLevel).map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
             </div>
-            <p className="text-[10px] text-gray-600 italic leading-relaxed">"{analysisResult.reasoning}"</p>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Hình thức</label>
+              <select 
+                value={type} 
+                onChange={(e) => setType(e.target.value as EvidenceType)} 
+                className="w-full px-5 py-4 border-2 border-gray-100 font-bold bg-white text-xs outline-none text-gray-900 shadow-sm"
+              >
+                {Object.values(EvidenceType).map(t => (
+                  <option 
+                    key={t} 
+                    value={t}
+                    disabled={selectedSubCriterion?.requireDecision && t === EvidenceType.NO_DECISION}
+                  >
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
-        
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Cấp ban hành</label>
-            <select 
-              value={level} 
-              onChange={(e) => setLevel(e.target.value as EvidenceLevel)} 
-              className="w-full px-5 py-4 border-2 border-gray-100 font-bold bg-white text-xs outline-none text-gray-900 shadow-sm"
-            >
-              {Object.values(EvidenceLevel).map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">Hình thức</label>
-            <select 
-              value={type} 
-              onChange={(e) => setType(e.target.value as EvidenceType)} 
-              className="w-full px-5 py-4 border-2 border-gray-100 font-bold bg-white text-xs outline-none text-gray-900 shadow-sm"
-            >
-              {Object.values(EvidenceType).map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        </div>
 
         {showDecisionInput && (
           <div className="animate-fade-in">
@@ -240,7 +223,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
           </div>
         )}
 
-        {showQtyInput && (
+        {actualShowQtyInput && (
           <div className="animate-fade-in">
             <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">
               Số lượng (VD: Số ngày tình nguyện, số lần hiến máu) <span className="text-red-500">*</span>

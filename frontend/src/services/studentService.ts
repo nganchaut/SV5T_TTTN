@@ -24,8 +24,12 @@ export const studentService = {
     formData.append('CapDo', evidence.level);
     formData.append('LoaiMinhChung', evidence.type);
     if (evidence.decisionNumber) formData.append('SoQuyetDinh', evidence.decisionNumber);
-    if (evidence.file) formData.append('DuongDanFile', evidence.file);
-    formData.append('TenFile', evidence.fileName);
+    formData.append('SoLuong', evidence.qty?.toString() || '1');
+    const fileToUpload = evidence.files && evidence.files.length > 0 ? evidence.files[0] : null;
+    if (fileToUpload) {
+      formData.append('DuongDanFile', fileToUpload);
+    }
+    formData.append('TenFile', evidence.fileName || (fileToUpload ? fileToUpload.name : ''));
     formData.append('category', type);
 
     const response = await apiClient.post(url, formData, {
@@ -35,9 +39,8 @@ export const studentService = {
   },
 
   removeEvidence: async (type: CriterionType, guid: string): Promise<StudentProfile> => {
-    // Backend returns 204 No Content on delete, so we refetch the full profile
-    await apiClient.delete(`/api/evidences/${guid}/`);
-    const response = await apiClient.get('/api/students/me/');
+    // Backend now returns updated profile in response body (200 OK)
+    const response = await apiClient.delete(`/api/evidences/${guid}/`);
     return mapBackendStudentToFrontend(response.data);
   },
 
@@ -49,10 +52,16 @@ export const studentService = {
     formData.append('CapDo', evidence.level);
     formData.append('LoaiMinhChung', evidence.type);
     if (evidence.decisionNumber) formData.append('SoQuyetDinh', evidence.decisionNumber);
-    if (evidence.file) formData.append('DuongDanFile', evidence.file);
-    formData.append('TenFile', evidence.fileName);
+    formData.append('SoLuong', evidence.qty?.toString() || '1');
+    const fileToUpload = evidence.files && evidence.files.length > 0 ? evidence.files[0] : null;
+    if (fileToUpload) {
+      formData.append('DuongDanFile', fileToUpload);
+      formData.append('TenFile', evidence.fileName || fileToUpload.name);
+    }
     formData.append('category', type);
 
+    // Some backends have trouble with PUT + MultiPart. If it fails, consider using POST with a method override.
+    // However, we'll try to keep PUT first and fix the backend if needed.
     const response = await apiClient.put(url, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });

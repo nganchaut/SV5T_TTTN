@@ -9,22 +9,28 @@ export const useStudentActions = (
   userRole: string
 ) => {
   const addEvidence = useCallback(async (type: CriterionType, ev: Evidence) => {
-    setStudents(prev => prev.map(s => s.id === student.id ? {
-      ...s,
-      evidences: {
-        ...s.evidences,
-        [type]: [...(s.evidences[type] || []), ev]
-      }
-    } : s));
-    
+    const files = ev.files || [];
     try {
-      const updatedProfile = await studentService.addEvidence(type, ev);
-      setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
-      toast.success(`Đã thêm minh chứng: ${ev.name}`);
-    } catch (err) {
-      toast.error('Lỗi khi thêm minh chứng');
+      if (files.length > 1) {
+        toast.loading(`Đang tải lên ${files.length} minh chứng...`, { id: 'upload-multi' });
+        let latestProfile = student;
+        for (const file of files) {
+          const singleEv = { ...ev, files: [file], fileName: file.name };
+          latestProfile = await studentService.addEvidence(type, singleEv);
+        }
+        setStudents(prev => prev.map(s => s.id === latestProfile.id ? latestProfile : s));
+        toast.success(`Đã tải lên ${files.length} minh chứng thành công!`, { id: 'upload-multi' });
+      } else {
+        const updatedProfile = await studentService.addEvidence(type, ev);
+        setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
+        toast.success(`Đã thêm minh chứng: ${ev.name}`);
+      }
+    } catch (err: any) {
+      console.error("Add Evidence Error:", err);
+      const errorMsg = err.response?.data?.detail || 'Lỗi khi thêm minh chứng';
+      toast.error(errorMsg, { id: 'upload-multi' });
     }
-  }, [student.id, setStudents]);
+  }, [student, setStudents]);
 
   const removeEvidence = useCallback(async (type: CriterionType, id: string) => {
     try {
@@ -81,12 +87,32 @@ export const useStudentActions = (
   }, [student.id, setStudents]);
 
   const handleUpdateEvidence = useCallback(async (type: CriterionType, id: string, updatedEv: Evidence) => {
+    const files = updatedEv.files || [];
     try {
-      const updatedProfile = await studentService.updateEvidence(type, id, updatedEv);
-      setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
-      toast.success("Đã cập nhật minh chứng");
-    } catch (err) {
-      toast.error("Lỗi khi cập nhật minh chứng");
+      if (files.length > 1) {
+        toast.loading(`Đang tải lên thêm ${files.length - 1} minh chứng...`, { id: 'update-multi' });
+        
+        // 1. Update the current record with ONLY the first file
+        const firstFileEv = { ...updatedEv, files: [files[0]], fileName: files[0].name };
+        let latestProfile = await studentService.updateEvidence(type, id, firstFileEv);
+        
+        // 2. Add the rest as NEW records
+        for (let i = 1; i < files.length; i++) {
+          const extraEv = { ...updatedEv, files: [files[i]], fileName: files[i].name };
+          latestProfile = await studentService.addEvidence(type, extraEv);
+        }
+        
+        setStudents(prev => prev.map(s => s.id === latestProfile.id ? latestProfile : s));
+        toast.success(`Đã cập nhật và thêm ${files.length - 1} minh chứng mới!`, { id: 'update-multi' });
+      } else {
+        const updatedProfile = await studentService.updateEvidence(type, id, updatedEv);
+        setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
+        toast.success("Đã cập nhật minh chứng");
+      }
+    } catch (err: any) {
+      console.error("Update Evidence Error:", err);
+      const errorMsg = err.response?.data?.detail || 'Lỗi khi cập nhật minh chứng';
+      toast.error(errorMsg, { id: 'update-multi' });
     }
   }, [setStudents]);
 
