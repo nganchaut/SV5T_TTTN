@@ -27,3 +27,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Documents, Reports & Scripts (Not part of the source code)
+*.docx
+*.drawio
+*.drawio.bkp
+*.png
+*.jpg
+*.jpeg
+*.pdf
+*.sql
+*.txt
+*.md
+!README.md
+!backend/requirements.txt
+!frontend/package.json
+metadata.json
+status.txt

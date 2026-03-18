@@ -1,7 +1,0 @@
-{
-  "name": "Hệ thống Xét duyệt Sinh viên 5 Tốt",
-  "description": "Nền tảng chuyên nghiệp hỗ trợ sinh viên nộp hồ sơ, tự phân loại minh chứng và giúp Hội sinh viên sàng lọc, chấm điểm danh hiệu Sinh viên 5 Tốt các cấp dựa trên 5 tiêu chí cốt lõi.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}
