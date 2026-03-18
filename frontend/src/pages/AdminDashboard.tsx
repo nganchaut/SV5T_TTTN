@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification, Post } from '../types';
+import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification, Post, EvidenceType } from '../types';
 import { SUB_CRITERIA } from '../constants';
 import { adminService } from '../services/adminService';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -53,7 +53,7 @@ const AdminDashboard: React.FC<{
     const init: Record<string, CriterionItem[]> = {};
     criteriaGroups.forEach(group => {
       init[group.TenNhom] = group.tieu_chi.map((tc: any) => {
-        const lp: Record<string, number> = { khoa: 0.1, truong: 0.2, dhdn: 0.3, tinh: 0.4, tw: 0.5 };
+        const lp: Record<string, number> = {};
         if (tc.diem_cap_do && tc.diem_cap_do.length > 0) {
           tc.diem_cap_do.forEach((d: any) => {
             const levelKey = d.CapDo === 'Cấp Khoa/CLB' ? 'khoa' :
@@ -1235,43 +1235,66 @@ const AdminDashboard: React.FC<{
                       })()}
 
                       <div className="space-y-4">
-                        {list.length > 0 ? list.map(ev => (
-                          <div key={ev.id} className={`group bg-white p-5 border-2 rounded-2xl flex gap-6 items-center transition-all hover:border-blue-500/30 ${ev.status === 'Approved' ? 'border-green-500/20 bg-green-50/20' : ev.status === 'Rejected' ? 'border-red-500/20 bg-red-50/20' : ev.status === 'NeedsExplanation' ? 'border-orange-500/30 bg-orange-50/30' : 'border-gray-100'}`}>
-                            {/* Image Preview */}
-                            {ev.fileUrl && (ev.fileUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) || ev.fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)) ? (
-                              <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border shadow-inner">
-                                <img src={ev.fileUrl} alt={ev.name} className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform" onClick={() => window.open(ev.fileUrl, '_blank')} />
-                              </div>
-                            ) : (
-                              <div className="w-20 h-20 flex-shrink-0 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shadow-inner text-blue-400">
-                                <i className="fas fa-file-pdf text-2xl"></i>
-                              </div>
-                            )}
+                        {list.length > 0 ? (
+                          list.map(ev => {
+                          const criterion = managedCriteria[cat]?.find(c => c.id === ev.subCriterionId);
+                          const isSimpleEvidence = ['eth_hard_1', 'aca_hard_1', 'int_hard_1', 'eth_point_1', 'phy_hard_1', 'aca_point_2', 'int_hard_2'].includes(ev.subCriterionId);
+                          const hasLevelPoints = criterion && Object.keys(criterion.levelPoints).length > 0;
+                          
+                          // Hide level for simple point-based criteria. Show it if explicitly it has points or user provided a decision
+                          const showLevel = !isSimpleEvidence && (hasLevelPoints || (ev.type && ev.type !== EvidenceType.NO_DECISION));
+                          const showDecisionNumber = !!ev.decisionNumber;
 
-                             <div className="flex-1 min-w-0">
-                               <div className="flex justify-between items-start mb-1">
-                                 <div className="max-w-[70%]">
-                                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                     <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest truncate">{ev.subCriterionName}</p>
-                                     {ev.isHardCriterion ? (
-                                       <span className="px-1 py-0.5 bg-red-100 text-red-600 text-[6px] font-black uppercase rounded border border-red-200 flex items-center gap-1 shrink-0" title="Bắt buộc đạt">
-                                         <i className="fas fa-exclamation-triangle"></i> Cứng
-                                       </span>
-                                     ) : (
-                                       <span className="px-1 py-0.5 bg-blue-100 text-blue-600 text-[6px] font-black uppercase rounded border border-blue-200 flex items-center gap-1 shrink-0" title="Cộng điểm">
-                                         <i className="fas fa-plus-circle"></i> Cộng
-                                       </span>
-                                     )}
+                          return (
+                            <div key={ev.id} className={`group bg-white p-5 border-2 rounded-2xl flex gap-6 items-center transition-all hover:border-blue-500/30 ${ev.status === 'Approved' ? 'border-green-500/20 bg-green-50/20' : ev.status === 'Rejected' ? 'border-red-500/20 bg-red-50/20' : ev.status === 'NeedsExplanation' ? 'border-orange-500/30 bg-orange-50/30' : 'border-gray-100'}`}>
+                              {/* Image Preview */}
+                              {ev.fileUrl && (ev.fileUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/) || ev.fileName.toLowerCase().match(/\.(jpg|jpeg|png|gif|webp)$/)) ? (
+                                <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded-xl overflow-hidden border shadow-inner">
+                                  <img src={ev.fileUrl} alt={ev.name} className="w-full h-full object-cover cursor-pointer hover:scale-110 transition-transform" onClick={() => window.open(ev.fileUrl, '_blank')} />
+                                </div>
+                              ) : (
+                                <div className="w-20 h-20 flex-shrink-0 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 shadow-inner text-blue-400">
+                                  <i className="fas fa-file-pdf text-2xl"></i>
+                                </div>
+                              )}
+
+                               <div className="flex-1 min-w-0">
+                                 <div className="flex justify-between items-start mb-1">
+                                   <div className="max-w-[70%]">
+                                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                       <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest truncate">{ev.subCriterionName}</p>
+                                       {ev.isHardCriterion ? (
+                                         <span className="px-1 py-0.5 bg-red-100 text-red-600 text-[6px] font-black uppercase rounded border border-red-200 flex items-center gap-1 shrink-0" title="Bắt buộc đạt">
+                                           <i className="fas fa-exclamation-triangle"></i> Cứng
+                                         </span>
+                                       ) : (
+                                         <span className="px-1 py-0.5 bg-blue-100 text-blue-600 text-[6px] font-black uppercase rounded border border-blue-200 flex items-center gap-1 shrink-0" title="Cộng điểm">
+                                           <i className="fas fa-plus-circle"></i> Cộng
+                                         </span>
+                                       )}
+                                     </div>
+                                     <h5 className="text-[13px] font-black text-gray-900 uppercase truncate" title={ev.name}>{ev.name}</h5>
                                    </div>
-                                   <h5 className="text-[13px] font-black text-gray-900 uppercase truncate" title={ev.name}>{ev.name}</h5>
+                                   <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest shrink-0 ${ev.status === 'Approved' ? 'bg-green-500 text-white' : ev.status === 'Rejected' ? 'bg-red-500 text-white' : ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'}`}>{ev.status}</span>
                                  </div>
-                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest shrink-0 ${ev.status === 'Approved' ? 'bg-green-500 text-white' : ev.status === 'Rejected' ? 'bg-red-500 text-white' : ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'}`}>{ev.status}</span>
-                               </div>
-                               <div className="flex items-center gap-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                 <span>{ev.level}</span>
-                                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                 <button onClick={() => window.open(ev.fileUrl, '_blank')} className="text-blue-500 hover:text-orange-500 transition-colors flex items-center gap-1"><i className="fas fa-eye"></i> Xem file</button>
-                               </div>
+                                 <div className="flex items-center gap-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                   {showDecisionNumber && (
+                                     <>
+                                       <span title="Số quyết định" className="text-gray-500">
+                                         <i className="fas fa-hashtag mr-1"></i>
+                                         SQĐ: {ev.decisionNumber}
+                                       </span>
+                                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                     </>
+                                   )}
+                                   {showLevel && (
+                                     <>
+                                       <span>{ev.level}</span>
+                                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                     </>
+                                   )}
+                                   <button onClick={() => window.open(ev.fileUrl, '_blank')} className="text-blue-500 hover:text-orange-500 transition-colors flex items-center gap-1"><i className="fas fa-eye"></i> Xem file</button>
+                                 </div>
                                {ev.studentExplanation && (
                                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl relative overflow-hidden animate-fade-in shadow-sm">
                                    <div className="absolute top-0 right-0 px-2 py-0.5 bg-blue-600 text-white text-[6px] font-black uppercase rounded-bl-lg">Giải trình SV</div>
@@ -1287,7 +1310,8 @@ const AdminDashboard: React.FC<{
                               <button onClick={() => handleEvidenceAction(cat, ev.id, 'Rejected')} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${ev.status === 'Rejected' ? 'bg-red-600 text-white shadow-lg shadow-red-600/20' : 'bg-gray-50 text-red-600 hover:bg-red-100'}`} title="Không đạt"><i className="fas fa-times text-[10px]"></i></button>
                             </div>
                           </div>
-                        )) : (
+                        );
+                      })) : (
                           <div className="py-20 text-center space-y-4 bg-white rounded-3xl border-2 border-dashed border-gray-100">
                              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-200 text-2xl"><i className="fas fa-folder-open"></i></div>
                              <p className="text-[11px] font-black text-gray-300 uppercase tracking-widest">Không có minh chứng bổ sung</p>
