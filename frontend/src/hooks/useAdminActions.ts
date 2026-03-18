@@ -10,7 +10,13 @@ export const useAdminActions = (
     try {
       const updated = await adminService.updateProfileStatus(studentId, status, feedback);
       setStudents(prev => prev.map(s => s.id === updated.id ? updated : s));
-      toast.success('Đã cập nhật trạng thái hồ sơ');
+      
+      const statusLabels: Record<string, string> = {
+        'Approved': 'Đã DUYỆT hồ sơ thành công!',
+        'Rejected': 'Đã TỪ CHỐI hồ sơ.',
+        'Processing': 'Đã gửi yêu cầu GIẢI TRÌNH/BỔ SUNG.'
+      };
+      toast.success(statusLabels[status] || 'Đã cập nhật trạng thái hồ sơ');
     } catch (err: any) {
       toast.error("Lỗi cập nhật: " + (err.response?.data?.detail || err.message));
     }

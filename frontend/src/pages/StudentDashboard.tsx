@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { CriterionType, Evidence, StudentProfile, EvidenceLevel, EvidenceType, FieldVerification } from '../types';
 import { SUB_CRITERIA, POINT_MATRIX } from '../constants';
 import EvidenceForm from '../components/EvidenceForm';
@@ -125,6 +126,59 @@ const StudentDashboard: React.FC<{
   const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string, subId: string, editingEvidence?: Evidence } | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
+  const [showUnsubmitModal, setShowUnsubmitModal] = useState(false);
+  const [isUnsubmittingAction, setIsUnsubmittingAction] = useState(false);
+
+  const renderUnsubmitModal = () => {
+    if (!showUnsubmitModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-[2000] bg-blue-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden animate-fade-up">
+          <div className="px-8 py-6 bg-orange-500 text-white flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-black uppercase tracking-tight">Xác nhận hủy nộp</h3>
+              <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest mt-1">Thay đổi trạng thái hồ sơ</p>
+            </div>
+            <button onClick={() => setShowUnsubmitModal(false)} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"><i className="fas fa-times"></i></button>
+          </div>
+
+          <div className="p-8 space-y-6">
+            <p className="text-sm font-medium text-gray-600 leading-relaxed">
+              Bạn có chắc chắn muốn hủy nộp hồ sơ để chỉnh sửa lại không? Sau khi xác nhận, hồ sơ sẽ quay về trạng thái nháp và bạn có thể thay đổi các minh chứng.
+            </p>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <button 
+                onClick={() => setShowUnsubmitModal(false)}
+                className="px-6 py-3 text-gray-400 font-black text-[9px] uppercase tracking-widest hover:text-gray-600 transition-all"
+              >
+                Quay lại
+              </button>
+              <button 
+                disabled={isUnsubmittingAction}
+                onClick={async () => {
+                  setIsUnsubmittingAction(true);
+                  try {
+                    await onUnsubmit();
+                    setShowUnsubmitModal(false);
+                  } catch (e) {
+                    // Error handled in hook
+                  } finally {
+                    setIsUnsubmittingAction(false);
+                  }
+                }}
+                className={`px-10 py-3 bg-orange-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/10 ${isUnsubmittingAction ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                {isUnsubmittingAction ? <i className="fas fa-spinner fa-spin mr-2"></i> : null}
+                Xác nhận hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const handleFinalSubmitExplanation = async () => {
     try {
@@ -168,7 +222,7 @@ const StudentDashboard: React.FC<{
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (e) {
       console.error("Submit Error:", e);
-      alert("Có lỗi xảy ra khi gửi giải trình. Vui lòng thử lại.");
+      toast.error("Có lỗi xảy ra khi gửi giải trình. Vui lòng thử lại.");
     } finally {
       setIsResubmitting(false);
     }
@@ -302,11 +356,15 @@ const StudentDashboard: React.FC<{
   if (student.verifications.gpa?.status === 'NeedsExplanation') flaggedFields.push({ key: 'gpa', label: 'GPA Học tập', val: student.gpa });
   if (student.verifications.peScore?.status === 'NeedsExplanation') flaggedFields.push({ key: 'peScore', label: 'Điểm Thể dục', val: student.peScore });
   if (student.verifications.english?.status === 'NeedsExplanation') flaggedFields.push({ key: 'english', label: 'Ngoại ngữ', val: `${student.englishLevel}` });
+  if (student.verifications.partyMember?.status === 'NeedsExplanation') flaggedFields.push({ key: 'partyMember', label: 'Đảng viên', val: student.isPartyMember ? 'Có' : 'Không' });
+
+  const [isEditModeInProcessing, setIsEditModeInProcessing] = useState(false);
 
   // GIAO DIỆN KHI HỒ SƠ ĐANG CHỜ DUYỆT (LOCK)
   if (student.status === 'Submitted') {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
+      <>
+        <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-10 text-white shadow-2xl rounded-lg">
           <div className="flex items-center gap-6 mb-4">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center text-3xl">
@@ -322,7 +380,7 @@ const StudentDashboard: React.FC<{
           </p>
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-wrap gap-4">
             <button 
-              onClick={onUnsubmit} 
+              onClick={() => setShowUnsubmitModal(true)} 
               className="px-8 py-3 bg-white text-blue-600 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-lg active:scale-95"
             >
               Hủy nộp để chỉnh sửa
@@ -352,7 +410,9 @@ const StudentDashboard: React.FC<{
             </div>
           ))}
         </div>
-      </div>
+        </div>
+        {renderUnsubmitModal()}
+      </>
     );
   }
 
@@ -418,17 +478,33 @@ const StudentDashboard: React.FC<{
 
 
   // GIAO DIỆN CHỈ HIỂN THỊ KHI ĐANG GIẢI TRÌNH
-  if (isProcessing) {
+  if (isProcessing && !isEditModeInProcessing) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
-        <div className="bg-[#f26522] p-10 text-white shadow-2xl rounded-sm">
-          <div className="flex items-center gap-6 mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl"><i className="fas fa-exclamation-circle"></i></div>
-            <h2 className="text-2xl font-black uppercase tracking-tight">Chế độ Giải trình Hồ sơ</h2>
+        <div className="bg-[#f26522] p-10 text-white shadow-2xl rounded-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-3xl shadow-inner"><i className="fas fa-exclamation-triangle animate-bounce-slow"></i></div>
+              <div>
+                <h2 className="text-3xl font-black uppercase tracking-tight">Chế độ Giải trình Hồ sơ</h2>
+                <p className="text-orange-100 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">Hội đồng đang chờ phản hồi từ bạn</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setIsEditModeInProcessing(true)}
+              className="px-6 py-3 bg-white text-[#f26522] font-black text-[10px] uppercase tracking-widest rounded-lg hover:bg-blue-900 hover:text-white transition-all shadow-xl"
+            >
+              <i className="fas fa-edit mr-2"></i>Chỉnh sửa hồ sơ chung
+            </button>
           </div>
-          <p className="text-sm font-medium border-l-4 border-white/40 pl-6 py-2 italic opacity-90">
-            " {student.feedback || "Vui lòng phản hồi các nội dung sau để Hội đồng tiếp tục xét duyệt."} "
-          </p>
+          
+          <div className="mt-10 p-8 bg-white/10 rounded-xl border border-white/20 backdrop-blur-sm">
+            <h4 className="text-[10px] font-black uppercase tracking-widest mb-3 text-orange-100 italic">Ý kiến phản hồi từ Hội đồng:</h4>
+            <p className="text-xl font-medium leading-relaxed font-formal italic">
+              " {student.feedback || "Vui lòng phản hồi các nội dung sau để Hội đồng tiếp tục xét duyệt."} "
+            </p>
+          </div>
         </div>
 
         <div className="space-y-8">
@@ -465,7 +541,7 @@ const StudentDashboard: React.FC<{
                         const file = e.target.files?.[0];
                         if (file) {
                           setLocalFieldFiles(prev => ({ ...prev, [field.key]: file }));
-                          alert("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút Gửi Phản Hồi Giải Trình.");
+                          toast.success("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút GỬI PHẢN HỒI.");
                         }
                       }}
                     />
@@ -491,7 +567,7 @@ const StudentDashboard: React.FC<{
                 <button 
                   onClick={() => {
                      if (!ev.fileUrl) {
-                        alert('Không tìm thấy file đính kèm hợp lệ!');
+                        toast.error('Không tìm thấy file đính kèm hợp lệ!');
                         return;
                      }
                      const url = formatUrl(ev.fileUrl);
@@ -526,7 +602,7 @@ const StudentDashboard: React.FC<{
                         const file = e.target.files?.[0];
                         if (file) {
                           setLocalEvidenceFiles(prev => ({ ...prev, [ev.id]: file }));
-                          alert("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút Gửi Phản Hồi Giải Trình.");
+                          toast.success("Đã chọn file: " + file.name + ". File sẽ được gửi khi bạn bấm nút GỬI PHẢN HỒI.");
                         }
                       }}
                     />
@@ -563,6 +639,27 @@ const StudentDashboard: React.FC<{
       </div>
     );
   }
+
+  // Nếu đang ở chế độ sửa trong khi Processing, chèn thêm banner cảnh báo ở đầu
+  const processingBanner = isProcessing && isEditModeInProcessing ? (
+    <div className="max-w-6xl mx-auto px-4 pt-8">
+      <div className="bg-blue-900 p-6 rounded-2xl flex items-center justify-between text-white shadow-2xl border-2 border-orange-500 animate-fade-down">
+        <div className="flex items-center gap-6">
+          <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center animate-pulse shadow-lg shadow-orange-500/20"><i className="fas fa-info-circle text-xl"></i></div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-1">Chế độ chỉnh sửa trực tiếp</p>
+            <p className="text-sm font-medium opacity-90">Bạn có thể sửa đổi thông tin. Sau khi xong, hãy nhấn nút quay lại để gửi giải trình.</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setIsEditModeInProcessing(false)}
+          className="px-8 py-3 bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95"
+        >
+          <i className="fas fa-reply mr-2"></i>Quay lại Giải trình
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   // GIAO DIỆN NỘP MỚI (CHỈ HIỆN KHI LÀ DRAFT)
   const currentStep = STEPS[currentStepIdx];
@@ -880,7 +977,9 @@ const StudentDashboard: React.FC<{
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
+    <div className="pb-24">
+      {processingBanner}
+      <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b pb-8">
         <div className="flex-1">
@@ -969,8 +1068,10 @@ const StudentDashboard: React.FC<{
           </div>
         </div>
       )}
+      {renderUnsubmitModal()}
     </div>
-  );
+  </div>
+);
 };
 
 export default StudentDashboard;

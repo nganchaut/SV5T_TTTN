@@ -58,6 +58,7 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
         evidences[mappedCat].push({
           id: String(mc.id),
           subCriterionId: String(mc.TieuChi),
+          subCriterionName: mc.TieuChiMoTa || '',
           name: mc.TenMinhChung,
           level: mc.CapDo,
           type: mc.LoaiMinhChung,

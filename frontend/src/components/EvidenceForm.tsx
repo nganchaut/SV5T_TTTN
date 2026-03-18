@@ -82,8 +82,8 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const selectedSubCriterion = useMemo(() => availableSubCriteria.find(sc => sc.id === subCriterionId), [availableSubCriteria, subCriterionId]);
   const showQtyInput = selectedSubCriterion?.minQty !== undefined;
 
-  const isSimpleEvidence = (subCriterionId || propsSubId) === 'eth_hard_1' || (subCriterionId || propsSubId) === 'aca_hard_1' || (subCriterionId || propsSubId) === 'int_hard_1';
-  const showDecisionInput = !isSimpleEvidence && (type !== EvidenceType.NO_DECISION || selectedSubCriterion?.requireDecision);
+  const isSimpleEvidence = (subCriterionId || propsSubId) === 'eth_hard_1' || (subCriterionId || propsSubId) === 'aca_hard_1' || (subCriterionId || propsSubId) === 'int_hard_1' || (subCriterionId || propsSubId) === 'eth_point_1' || (subCriterionId || propsSubId) === 'phy_hard_1' || (subCriterionId || propsSubId) === 'aca_point_2' || (subCriterionId || propsSubId) === 'int_hard_2';
+  const showDecisionInput = !isSimpleEvidence && (type !== EvidenceType.NO_DECISION);
   const actualShowQtyInput = (subCriterionId || propsSubId) === 'vol_hard_2';
 
 
@@ -200,7 +200,6 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
                   <option 
                     key={t} 
                     value={t}
-                    disabled={selectedSubCriterion?.requireDecision && t === EvidenceType.NO_DECISION}
                   >
                     {t}
                   </option>

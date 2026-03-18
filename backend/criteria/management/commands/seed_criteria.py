@@ -34,7 +34,7 @@ DATA = [
                 'MaTieuChi': 'eth_point_1',
                 'MoTa': 'Là Đảng viên Đảng Cộng sản Việt Nam',
                 'LoaiTieuChi': 'Cong', 'Diem': 0.4,
-                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 3,
                 'diem_cap_do': []
             },
             {
@@ -90,7 +90,7 @@ DATA = [
                 'MaTieuChi': 'aca_point_2',
                 'MoTa': 'Có luận văn, đồ án tốt nghiệp đạt điểm đánh giá từ 8.0 trở lên',
                 'LoaiTieuChi': 'Cong', 'Diem': 0.1,
-                'CoSoQuyetDinh': True, 'SoLuongToiThieu': None, 'ThuTu': 3,
+                'CoSoQuyetDinh': False, 'SoLuongToiThieu': None, 'ThuTu': 3,
                 'diem_cap_do': []
             },
             {

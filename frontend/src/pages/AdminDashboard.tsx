@@ -136,9 +136,22 @@ const AdminDashboard: React.FC<{
       message: `Bạn đang thực hiện hành động: ${actionTxt} cho sinh viên ${selectedStudent.fullName}.`,
       requireFeedback: status === 'Rejected' || status === 'Processing',
       onSubmit: (feedback) => {
+        if (status === 'Approved' && hasRejectedHardCriteria()) {
+          toast.error("Không thể duyệt hồ sơ vì có tiêu chí cứng bị từ chối.");
+          return;
+        }
+        const needsExplanationCount = getExplanationCount();
+        if (status === 'Processing' && needsExplanationCount === 0) {
+          toast.error("Vui lòng đánh dấu ít nhất một mục cần giải trình trước khi gửi yêu cầu.");
+          return;
+        }
         onUpdateStatus(status, feedback);
         setIsReviewing(false);
         setFeedbackModal(prev => ({ ...prev, show: false }));
+        
+        if (status === 'Processing') {
+          toast.success(`Hồ sơ ${selectedStudent.fullName} đã chuyển sang mục [Đang giải trình]`, { duration: 5000 });
+        }
       }
     });
   };
@@ -363,6 +376,18 @@ const AdminDashboard: React.FC<{
     return count;
   };
 
+  const hasRejectedHardCriteria = () => {
+    if (!selectedStudent) return false;
+    
+    // Check general verifications (all are hard/mandatory)
+    const rejectedVerifications = (Object.values(selectedStudent.verifications) as FieldVerification[]).some(v => v.status === 'Rejected');
+    if (rejectedVerifications) return true;
+
+    // Check evidences for hard criteria
+    const rejectedHardEvidences = (Object.values(selectedStudent.evidences) as Evidence[][]).flat().some(e => e.isHardCriterion && e.status === 'Rejected');
+    return rejectedHardEvidences;
+  };
+
   const SIDEBAR_ITEMS: { key: typeof activeTab, icon: string, label: string }[] = [
     { key: 'profiles', icon: 'fa-folder-open', label: 'Quản lý hồ sơ' },
     { key: 'stats', icon: 'fa-chart-bar', label: 'Thống kê' },
@@ -416,7 +441,12 @@ const AdminDashboard: React.FC<{
                     </div>
                   </td>
                   <td className="px-6 py-5 text-center text-xl font-black text-blue-900 font-formal">{s.totalScore}</td>
-                  <td className="px-6 py-5 text-right">
+                  <td className="px-6 py-5 text-right flex items-center justify-end gap-3">
+                    {(s.status === 'Submitted' || s.status === 'Processing') && (Object.values(s.verifications).some((v: any) => v.explanation) || Object.values(s.evidences).flat().some((e: any) => e.studentExplanation)) ? (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-[8px] font-black uppercase rounded flex items-center gap-1">
+                        <i className="fas fa-comment-dots"></i> Đã giải trình
+                      </span>
+                    ) : null}
                     <button onClick={() => { onSelectStudent(s.id); setIsReviewing(true); }} className="px-5 py-2.5 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-sm">
                       <i className="fas fa-eye mr-1.5"></i>Thẩm định
                     </button>
@@ -1043,7 +1073,14 @@ const AdminDashboard: React.FC<{
               </div>
               <button onClick={() => handleAction('Rejected')} className="px-4 py-2 border border-red-400/20 text-red-400 font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-red-500/20 transition-all">Từ chối</button>
               {getExplanationCount() > 0 && <button onClick={() => handleAction('Processing')} className="px-4 py-2 bg-orange-500/80 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-orange-500 transition-all">YC Giải trình ({getExplanationCount()})</button>}
-              <button onClick={() => handleAction('Approved')} className="px-5 py-2 bg-green-500 text-white font-black text-[9px] uppercase tracking-widest rounded-lg hover:bg-green-600 transition-all shadow-lg">Duyệt hồ sơ</button>
+               <button 
+                onClick={() => handleAction('Approved')} 
+                disabled={hasRejectedHardCriteria()}
+                title={hasRejectedHardCriteria() ? "Không thể duyệt hồ sơ vì có tiêu chí cứng bị từ chối" : "Phê duyệt hồ sơ"}
+                className={`px-5 py-2 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all shadow-lg ${hasRejectedHardCriteria() ? 'bg-gray-600 text-gray-400 cursor-not-allowed grayscale' : 'bg-green-500 text-white hover:bg-green-600'}`}
+              >
+                Duyệt hồ sơ
+              </button>
               <button onClick={() => setIsReviewing(false)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-red-500/30 text-white/40 hover:text-white flex items-center justify-center transition-all ml-2"><i className="fas fa-times text-sm"></i></button>
             </div>
           </div>
@@ -1086,7 +1123,25 @@ const AdminDashboard: React.FC<{
                           {cat}
                         </span>
                       </div>
-                      <div className="flex gap-1">
+                        <div className="flex gap-1 items-center">
+                        {(() => {
+                          const hasEvidenceExplanation = evs.some(e => e.studentExplanation);
+                          let hasFieldExplanation = false;
+                          if (cat === CriterionType.ETHICS) {
+                            hasFieldExplanation = !!(selectedStudent.verifications.trainingPoints?.explanation || selectedStudent.verifications.partyMember?.explanation);
+                          } else if (cat === CriterionType.ACADEMIC) {
+                            hasFieldExplanation = !!selectedStudent.verifications.gpa?.explanation;
+                          } else if (cat === CriterionType.PHYSICAL) {
+                            hasFieldExplanation = !!selectedStudent.verifications.peScore?.explanation;
+                          } else if (cat === CriterionType.INTEGRATION) {
+                            hasFieldExplanation = !!selectedStudent.verifications.english?.explanation;
+                          }
+                          
+                          if (hasEvidenceExplanation || hasFieldExplanation) {
+                            return <i className="fas fa-comment-dots text-blue-500 text-[10px] animate-pulse mr-1"></i>;
+                          }
+                          return null;
+                        })()}
                         {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>}
                         {explainCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></span>}
                         {rejectCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span>}
@@ -1108,7 +1163,14 @@ const AdminDashboard: React.FC<{
                   if (cat === CriterionType.ETHICS) { dataValue = `${selectedStudent.trainingPoints}`; contextName = "Điểm rèn luyện"; fieldKey = "trainingPoints"; }
                   if (cat === CriterionType.ACADEMIC) { dataValue = `${selectedStudent.gpa}`; contextName = "GPA"; fieldKey = "gpa"; }
                   if (cat === CriterionType.PHYSICAL) { dataValue = `${selectedStudent.peScore}`; contextName = "Điểm Thể dục"; fieldKey = "peScore"; }
-                  if (cat === CriterionType.INTEGRATION) { dataValue = `${selectedStudent.englishLevel}`; contextName = "Ngoại ngữ"; fieldKey = "english"; }
+                  if (cat === CriterionType.INTEGRATION) { 
+                    dataValue = selectedStudent.englishLevel !== 'None' 
+                      ? `${selectedStudent.englishLevel}${selectedStudent.englishGpa > 0 ? ` (GPA: ${selectedStudent.englishGpa})` : ''}`
+                      : (selectedStudent.englishGpa > 0 ? `GPA: ${selectedStudent.englishGpa}` : 'None');
+                    contextName = "Ngoại ngữ"; 
+                    fieldKey = "english"; 
+                  }
+                  
                   const verification = fieldKey ? selectedStudent.verifications[fieldKey] : { status: 'Pending' };
 
                   return (
@@ -1116,44 +1178,61 @@ const AdminDashboard: React.FC<{
                       <div className="flex items-center justify-between mb-8">
                         <div>
                           <h4 className="text-2xl font-black text-blue-900 uppercase font-formal tracking-tight">{cat}</h4>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Xác thực thông tin và minh chứng bổ sung</p>
-                        </div>
-                        {fieldKey && (
-                          <div className={`px-4 py-2 rounded-xl flex items-center gap-3 border-2 transition-all ${verification?.status === 'Approved' ? 'bg-green-50 border-green-200' : verification?.status === 'NeedsExplanation' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'}`}>
-                            <span className="text-[9px] font-black text-gray-400 uppercase">{contextName}: <span className="text-orange-600 text-sm ml-2">{dataValue}</span></span>
+                          <div className="flex items-center gap-4 mt-1">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Xác thực thông tin và minh chứng bổ sung</p>
+                            <div className="flex gap-3 bg-white/50 px-3 py-1 rounded-lg border border-gray-100 text-[7px] font-black uppercase tracking-tighter">
+                               <div className="flex items-center gap-1.5 text-red-500"><i className="fas fa-exclamation-triangle"></i> Cứng: Phải đạt</div>
+                               <div className="flex items-center gap-1.5 text-blue-500"><i className="fas fa-plus-circle"></i> Cộng: Thêm điểm</div>
+                            </div>
                           </div>
-                        )}
+                        </div>
+                        <div className="flex flex-col gap-2 items-end">
+                          {fieldKey && (
+                            <div className={`px-4 py-2 rounded-xl flex items-center gap-3 border-2 transition-all ${verification?.status === 'Approved' ? 'bg-green-50 border-green-200' : verification?.status === 'NeedsExplanation' ? 'bg-orange-50 border-orange-200' : 'bg-white border-gray-100'}`}>
+                              <span className="text-[9px] font-black text-gray-400 uppercase">{contextName}: <span className="text-orange-600 text-sm ml-2">{dataValue}</span></span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
-                      {/* Display XacMinh Explanation & File if exists */}
-                      {fieldKey && selectedStudent.verifications[fieldKey]?.explanation && (
-                        <div className="mb-8 p-6 bg-blue-50 border-2 border-blue-100 rounded-2xl">
-                           <div className="flex justify-between items-start mb-4">
-                             <div>
-                               <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest mb-1">Giải trình từ sinh viên:</p>
-                               <p className="text-xs text-gray-700 font-medium leading-relaxed italic">"{selectedStudent.verifications[fieldKey].explanation}"</p>
-                             </div>
-                             {selectedStudent.verifications[fieldKey].fileUrl && (
-                               <button 
-                                 onClick={() => {
-                                   const finalUrl = formatUrl(selectedStudent.verifications[fieldKey!]?.fileUrl);
-                                   window.open(finalUrl, '_blank');
-                                 }} 
-                                 className="px-4 py-2 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-md flex items-center gap-2"
-                               >
-                                 <i className="fas fa-file-download"></i> Xem file đính kèm
-                               </button>
-                             )}
-                           </div>
-                           
-                           {/* Quick Actions for General Field */}
-                           <div className="flex gap-2 justify-end border-t border-blue-100 pt-4">
-                              <button onClick={() => handleManualDataVerify('Approved', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'Approved' ? 'bg-green-600 text-white' : 'bg-gray-100 text-green-600 hover:bg-green-50'}`}>Đạt</button>
-                              <button onClick={() => handleManualDataVerify('NeedsExplanation', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-orange-500 hover:bg-orange-50'}`}>Cần giải trình</button>
-                              <button onClick={() => handleManualDataVerify('Rejected', fieldKey!, contextName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${verification?.status === 'Rejected' ? 'bg-red-600 text-white' : 'bg-gray-100 text-red-600 hover:bg-red-50'}`}>Không đạt</button>
-                           </div>
-                        </div>
-                      )}
+                      {/* Display Explanations for General Fields */}
+                      {(() => {
+                        const renderFieldExplanation = (fKey: keyof StudentProfile['verifications'], cName: string, dVal: string, ver: any) => {
+                          if (!ver?.explanation && !ver?.fileUrl) return null;
+                          return (
+                            <div className="mb-6 p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl shadow-sm animate-fade-in relative overflow-hidden">
+                              <div className="absolute top-0 right-0 px-3 py-1 bg-blue-600 text-white text-[7px] font-black uppercase rounded-bl-xl">Giải trình của SV</div>
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">{cName} ({dVal})</p>
+                                    <span className="px-1.5 py-0.5 bg-red-50 text-red-500 text-[6px] font-black uppercase rounded border border-red-100 shrink-0">Bắt buộc</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 font-bold leading-relaxed italic">"{ver.explanation || '(Không có nội dung văn bản)'}"</p>
+                                </div>
+                                {ver.fileUrl && (
+                                  <button 
+                                    onClick={() => window.open(formatUrl(ver.fileUrl), '_blank')}
+                                    className="px-4 py-2 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-md flex items-center gap-2"
+                                  >
+                                    <i className="fas fa-file-download"></i> Xem file
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex gap-2 justify-end border-t border-blue-100 pt-4">
+                                 <button onClick={() => handleManualDataVerify('Approved', fKey, cName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${ver?.status === 'Approved' ? 'bg-green-600 text-white' : 'bg-white text-green-600 border border-green-200 hover:bg-green-50'}`}>Đạt</button>
+                                 <button onClick={() => handleManualDataVerify('NeedsExplanation', fKey, cName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${ver?.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-white text-orange-500 border border-orange-200 hover:bg-orange-50'}`}>Cần giải trình</button>
+                                 <button onClick={() => handleManualDataVerify('Rejected', fKey, cName)} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${ver?.status === 'Rejected' ? 'bg-red-600 text-white' : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'}`}>Không đạt</button>
+                              </div>
+                            </div>
+                          );
+                        };
+                        return (
+                          <>
+                            {fieldKey && renderFieldExplanation(fieldKey, contextName, dataValue, verification)}
+                          </>
+                        );
+                      })()}
 
                       <div className="space-y-4">
                         {list.length > 0 ? list.map(ev => (
@@ -1169,10 +1248,24 @@ const AdminDashboard: React.FC<{
                               </div>
                             )}
 
-                            <div className="flex-1 min-w-0">
+                             <div className="flex-1 min-w-0">
                                <div className="flex justify-between items-start mb-1">
-                                <h5 className="text-[13px] font-black text-gray-900 uppercase truncate">{ev.name}</h5>
-                                <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${ev.status === 'Approved' ? 'bg-green-500 text-white' : ev.status === 'Rejected' ? 'bg-red-500 text-white' : ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'}`}>{ev.status}</span>
+                                 <div className="max-w-[70%]">
+                                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                     <p className="text-[8px] font-black text-blue-600 uppercase tracking-widest truncate">{ev.subCriterionName}</p>
+                                     {ev.isHardCriterion ? (
+                                       <span className="px-1 py-0.5 bg-red-100 text-red-600 text-[6px] font-black uppercase rounded border border-red-200 flex items-center gap-1 shrink-0" title="Bắt buộc đạt">
+                                         <i className="fas fa-exclamation-triangle"></i> Cứng
+                                       </span>
+                                     ) : (
+                                       <span className="px-1 py-0.5 bg-blue-100 text-blue-600 text-[6px] font-black uppercase rounded border border-blue-200 flex items-center gap-1 shrink-0" title="Cộng điểm">
+                                         <i className="fas fa-plus-circle"></i> Cộng
+                                       </span>
+                                     )}
+                                   </div>
+                                   <h5 className="text-[13px] font-black text-gray-900 uppercase truncate" title={ev.name}>{ev.name}</h5>
+                                 </div>
+                                 <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest shrink-0 ${ev.status === 'Approved' ? 'bg-green-500 text-white' : ev.status === 'Rejected' ? 'bg-red-500 text-white' : ev.status === 'NeedsExplanation' ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'}`}>{ev.status}</span>
                                </div>
                                <div className="flex items-center gap-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                                  <span>{ev.level}</span>
@@ -1180,8 +1273,9 @@ const AdminDashboard: React.FC<{
                                  <button onClick={() => window.open(ev.fileUrl, '_blank')} className="text-blue-500 hover:text-orange-500 transition-colors flex items-center gap-1"><i className="fas fa-eye"></i> Xem file</button>
                                </div>
                                {ev.studentExplanation && (
-                                 <div className="mt-3 p-3 bg-blue-500/5 rounded-lg border border-blue-500/10">
-                                   <p className="text-[10px] font-medium text-blue-700 leading-relaxed"><i className="fas fa-comment-dots mr-2"></i>{ev.studentExplanation}</p>
+                                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl relative overflow-hidden animate-fade-in shadow-sm">
+                                   <div className="absolute top-0 right-0 px-2 py-0.5 bg-blue-600 text-white text-[6px] font-black uppercase rounded-bl-lg">Giải trình SV</div>
+                                   <p className="text-[11px] font-bold text-gray-800 leading-relaxed italic"><i className="fas fa-comment-dots mr-2 text-blue-500"></i>"{ev.studentExplanation}"</p>
                                  </div>
                                )}
                                {ev.adminFeedback && <p className="text-[10px] italic text-orange-700 mt-2 font-medium">Lưu ý: {ev.adminFeedback}</p>}

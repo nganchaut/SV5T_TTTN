@@ -26,9 +26,21 @@ export const useStudentActions = (
         toast.success(`Đã thêm minh chứng: ${ev.name}`);
       }
     } catch (err: any) {
-      console.error("Add Evidence Error:", err);
-      const errorMsg = err.response?.data?.detail || 'Lỗi khi thêm minh chứng';
-      toast.error(errorMsg, { id: 'upload-multi' });
+      console.error("Add Evidence Error Full Response:", err.response?.data);
+      let errorMsg = 'Lỗi khi thêm minh chứng';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMsg = err.response.data.detail;
+        } else {
+          // Join all field errors
+          errorMsg = Object.entries(err.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+        }
+      }
+      toast.error(errorMsg, { id: 'upload-multi', duration: 5000 });
     }
   }, [student, setStudents]);
 
@@ -54,14 +66,13 @@ export const useStudentActions = (
   }, [setStudents]);
 
   const handleUnsubmit = useCallback(async () => {
-    if (window.confirm("Bạn có chắc chắn muốn hủy nộp hồ sơ để chỉnh sửa lại không?")) {
-      try {
-        const updatedProfile = await studentService.unsubmitProfile();
-        setStudents([updatedProfile]);
-        toast.success("Đã hủy nộp hồ sơ!");
-      } catch (err) {
-        toast.error("Lỗi khi hủy nộp hồ sơ");
-      }
+    const tid = toast.loading("Đang xử lý hủy nộp...");
+    try {
+      const updatedProfile = await studentService.unsubmitProfile();
+      setStudents(prev => prev.map(s => s.id === updatedProfile.id ? updatedProfile : s));
+      toast.success("Đã hủy nộp hồ sơ!", { id: tid });
+    } catch (err) {
+      toast.error("Lỗi khi hủy nộp hồ sơ", { id: tid });
     }
   }, [setStudents]);
 
@@ -110,9 +121,20 @@ export const useStudentActions = (
         toast.success("Đã cập nhật minh chứng");
       }
     } catch (err: any) {
-      console.error("Update Evidence Error:", err);
-      const errorMsg = err.response?.data?.detail || 'Lỗi khi cập nhật minh chứng';
-      toast.error(errorMsg, { id: 'update-multi' });
+      console.error("Update Evidence Error Full Response:", err.response?.data);
+      let errorMsg = 'Lỗi khi cập nhật minh chứng';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMsg = err.response.data.detail;
+        } else {
+          errorMsg = Object.entries(err.response.data)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+            .join(' | ');
+        }
+      }
+      toast.error(errorMsg, { id: 'update-multi', duration: 5000 });
     }
   }, [setStudents]);
 

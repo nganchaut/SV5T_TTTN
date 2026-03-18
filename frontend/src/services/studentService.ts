@@ -9,7 +9,20 @@ export const studentService = {
   },
 
   updateProfile: async (data: Partial<StudentProfile>): Promise<StudentProfile> => {
-    const response = await apiClient.put('/api/students/me/', data);
+    // Map frontend fields back to backend fields
+    const backendData: any = {};
+    if (data.fullName !== undefined) backendData.HoTen = data.fullName;
+    if (data.class !== undefined) backendData.Lop = data.class;
+    if (data.faculty !== undefined) backendData.Khoa = data.faculty;
+    if (data.gpa !== undefined) backendData.DiemTBC = data.gpa;
+    if (data.trainingPoints !== undefined) backendData.DiemRenLuyen = data.trainingPoints;
+    if (data.peScore !== undefined) backendData.DiemTheDuc = data.peScore;
+    if (data.englishLevel !== undefined) backendData.TrinhDoNgoaiNgu = data.englishLevel;
+    if (data.englishGpa !== undefined) backendData.GPANgoaiNgu = data.englishGpa;
+    if (data.isPartyMember !== undefined) backendData.LaDangVien = data.isPartyMember;
+    if (data.noViolation !== undefined) backendData.KhongViPham = data.noViolation;
+
+    const response = await apiClient.put('/api/students/me/', backendData);
     return mapBackendStudentToFrontend(response.data);
   },
 

@@ -60,9 +60,9 @@ class SinhVienUpdateSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         instance = self.instance
-        if instance and instance.TrangThaiHoSo not in ['Draft', 'Rejected']:
+        if instance and instance.TrangThaiHoSo not in ['Draft', 'Rejected', 'Processing']:
             raise serializers.ValidationError(
-                'Chỉ có thể chỉnh sửa hồ sơ khi ở trạng thái Nháp hoặc Bị từ chối.'
+                'Chỉ có thể chỉnh sửa hồ sơ khi ở trạng thái Nháp, Bị từ chối hoặc Đang giải trình.'
             )
         return data
 

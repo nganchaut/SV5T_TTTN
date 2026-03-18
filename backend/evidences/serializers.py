@@ -54,18 +54,14 @@ class MinhChungSubmitSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         tieu_chi = data.get('TieuChi')
-        cap_do = data.get('CapDo')
         loai = data.get('LoaiMinhChung')
 
-        # Nếu tiêu chí yêu cầu số quyết định
+        # Rule: Nếu chọn "Có Sqđ" hoặc "Giấy khen" mà tiêu chí yêu cầu số quyết định -> Bắt buộc nhập SoQuyetDinh
+        # Nếu chọn "Không Sqđ/GCN thường" -> Cho phép nộp kể cả khi tiêu chí yêu cầu số quyết định (để linh hoạt cho SV)
         if tieu_chi and tieu_chi.CoSoQuyetDinh:
-            if loai == 'Không Sqđ/GCN thường':
+            if loai != 'Không Sqđ/GCN thường' and not data.get('SoQuyetDinh'):
                 raise serializers.ValidationError(
-                    {'LoaiMinhChung': 'Tiêu chí này yêu cầu phải có số quyết định/GCN.'}
-                )
-            if not data.get('SoQuyetDinh'):
-                raise serializers.ValidationError(
-                    {'SoQuyetDinh': 'Tiêu chí này yêu cầu số quyết định.'}
+                    {'SoQuyetDinh': 'Hình thức này yêu cầu số quyết định.'}
                 )
         return data
 

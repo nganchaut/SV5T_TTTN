@@ -33,6 +33,7 @@ export interface SubCriterion {
 export interface Evidence {
   id: string;
   subCriterionId: string;
+  subCriterionName?: string;
   name: string;
   level: EvidenceLevel;
   type: EvidenceType;
