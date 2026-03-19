@@ -6,7 +6,7 @@ import StudentDashboard from '../pages/StudentDashboard';
 import AdminDashboard from '../pages/AdminDashboard';
 import PostDetailView from '../pages/PostDetailView';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { StudentProfile, FeaturedFace, CriterionType, Evidence, FieldVerification, Post } from '../types';
+import { StudentProfile, FeaturedFace, CriterionType, Evidence, FieldVerification, Post, SystemConfig } from '../types';
 
 interface AppRoutesProps {
   userRole: 'student' | 'admin' | 'guest';
@@ -39,6 +39,8 @@ interface AppRoutesProps {
   onAddPost: (post: { title: string, content: string, status: string, imageFile?: File }) => void;
   onUpdatePost: (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => void;
   onDeletePost: (id: string) => void;
+  systemSettings: SystemConfig | null;
+  setSystemSettings: React.Dispatch<React.SetStateAction<SystemConfig | null>>;
 }
 
 const AppRoutes: React.FC<AppRoutesProps> = ({
@@ -69,7 +71,9 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
   handleDeleteFace,
   onAddPost,
   onUpdatePost,
-  onDeletePost
+  onDeletePost,
+  systemSettings,
+  setSystemSettings
 }) => {
   return (
     <Routes>
@@ -90,6 +94,7 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             onResubmit={onResubmit}
             onUnsubmit={onUnsubmit}
             criteriaGroups={criteriaGroups}
+            systemSettings={systemSettings}
           />
         </ProtectedRoute>
       } />
@@ -112,6 +117,8 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
             onAddPost={onAddPost}
             onUpdatePost={onUpdatePost}
             onDeletePost={onDeletePost}
+            systemSettings={systemSettings}
+            setSystemSettings={setSystemSettings}
           />
         </ProtectedRoute>
       } />

@@ -3,8 +3,10 @@ import toast from 'react-hot-toast';
 import { CriterionType, Evidence, StudentProfile, FeaturedFace, FieldVerification, Post, EvidenceType } from '../types';
 import { SUB_CRITERIA } from '../constants';
 import { adminService } from '../services/adminService';
+import systemService from '../services/systemService';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatUrl } from '../utils/mapper';
+import { SystemConfig } from '../types';
 
 const AdminDashboard: React.FC<{
   students: StudentProfile[],
@@ -22,8 +24,10 @@ const AdminDashboard: React.FC<{
   posts: Post[],
   onAddPost: (post: { title: string, content: string, status: string, imageFile?: File }) => void,
   onUpdatePost: (id: string, post: { title?: string, content?: string, status?: string, imageFile?: File }) => void,
-  onDeletePost: (id: string) => void
-}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace, criteriaGroups, setCriteriaGroups, posts, onAddPost, onUpdatePost, onDeletePost }) => {
+  onDeletePost: (id: string) => void,
+  systemSettings: SystemConfig | null,
+  setSystemSettings: React.Dispatch<React.SetStateAction<SystemConfig | null>>
+}> = ({ students, selectedStudent, onSelectStudent, onUpdateStatus, onUpdateEvidenceStatus, onUpdateFieldVerification, faces, onAddFace, onUpdateFace, onDeleteFace, criteriaGroups, setCriteriaGroups, posts, onAddPost, onUpdatePost, onDeletePost, systemSettings, setSystemSettings }) => {
   const navigate = useNavigate();
   const { activeTab: urlTab } = useParams<{ activeTab: string }>();
   const activeTab = urlTab || 'profiles';
@@ -114,6 +118,18 @@ const AdminDashboard: React.FC<{
     show: false,
     data: { TenDangNhap: '', MatKhau: '', HoTen: '', VaiTro: 'SinhVien', Email: '', Lop: '', Khoa: '' }
   });
+
+  const isSettingsLoading = !systemSettings;
+
+  const handleSaveSettings = async (data: Partial<SystemConfig>) => {
+    try {
+      const updated = await systemService.updateSettings(data);
+      setSystemSettings(updated);
+      toast.success("Đã lưu cài đặt hệ thống!");
+    } catch (error) {
+      toast.error("Lỗi khi lưu cài đặt!");
+    }
+  };
 
   const refreshUsers = () => {
     adminService.getUsers().then(setManagedUsers).catch(console.error);
@@ -388,6 +404,131 @@ const AdminDashboard: React.FC<{
     return rejectedHardEvidences;
   };
 
+  const renderSettings = () => {
+    if (isSettingsLoading) return (
+      <div className="flex flex-col items-center justify-center py-32 space-y-4">
+        <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Đang tải cài đặt hệ thống...</p>
+      </div>
+    );
+    if (!systemSettings) return null;
+
+    return (
+      <div className="max-w-4xl mx-auto space-y-12 animate-fade-in pb-20">
+        <div className="bg-white border-2 border-dashed border-blue-200 rounded-3xl p-10 text-center space-y-4">
+           <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto text-blue-500 text-2xl shadow-inner animate-pulse"><i className="fas fa-clock"></i></div>
+           <h3 className="text-xl font-black text-blue-900 uppercase font-formal italic">Cấu hình thời gian nộp hồ sơ</h3>
+           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-md mx-auto leading-relaxed">Kiểm soát thời điểm sinh viên có thể nộp và chỉnh sửa hồ sơ. Hệ thống sẽ tự động khóa các tính năng nộp và sửa khi ngoài khung giờ quy định.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+           <div className="bg-white p-8 border rounded-2xl shadow-sm space-y-6 hover:shadow-md transition-all">
+              <div className="flex items-center gap-4 mb-4">
+                 <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-600 shadow-sm"><i className="fas fa-calendar-alt"></i></div>
+                 <div>
+                    <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-widest">Khung thời gian nộp</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Thời gian tự động áp dụng</p>
+                 </div>
+              </div>
+              
+              <div className="space-y-4">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ngày bắt đầu</label>
+                    <input 
+                       type="datetime-local" 
+                       value={systemSettings.ThoiGianBatDau ? systemSettings.ThoiGianBatDau.substring(0, 16) : ''} 
+                       onChange={e => setSystemSettings({ ...systemSettings, ThoiGianBatDau: e.target.value })}
+                       onBlur={() => handleSaveSettings({ ThoiGianBatDau: systemSettings.ThoiGianBatDau })}
+                       className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-500 transition-all outline-none"
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Ngày kết thúc</label>
+                    <input 
+                       type="datetime-local" 
+                       value={systemSettings.ThoiGianKetThuc ? systemSettings.ThoiGianKetThuc.substring(0, 16) : ''} 
+                       onChange={e => setSystemSettings({ ...systemSettings, ThoiGianKetThuc: e.target.value })}
+                       onBlur={() => handleSaveSettings({ ThoiGianKetThuc: systemSettings.ThoiGianKetThuc })}
+                       className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold focus:border-blue-500 transition-all outline-none"
+                    />
+                 </div>
+              </div>
+           </div>
+
+           <div className="bg-white p-8 border rounded-2xl shadow-sm space-y-6 hover:shadow-md transition-all">
+              <div className="flex items-center gap-4 mb-4">
+                 <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600 shadow-sm"><i className="fas fa-power-off"></i></div>
+                 <div>
+                    <h4 className="text-[11px] font-black text-blue-900 uppercase tracking-widest">Trạng thái cổng</h4>
+                    <p className="text-[8px] text-gray-400 font-bold uppercase tracking-tighter">Bật/tắt thủ công ngay lập tức</p>
+                 </div>
+              </div>
+
+              <div className={`p-6 rounded-2xl flex items-center justify-between border-2 shadow-inner transition-all ${systemSettings.TrangThaiMo ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                 <div>
+                    <p className={`text-[13px] font-black uppercase tracking-tight ${systemSettings.TrangThaiMo ? 'text-green-600' : 'text-red-500'}`}>
+                       {systemSettings.TrangThaiMo ? 'Cổng đang MỞ' : 'Cổng đang ĐÓNG'}
+                    </p>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Ghi đè tất cả cài đặt thời gian</p>
+                 </div>
+                 <button 
+                   onClick={() => handleSaveSettings({ TrangThaiMo: !systemSettings.TrangThaiMo })}
+                   className={`w-14 h-8 rounded-full p-1 transition-all duration-500 shadow-inner group ${systemSettings.TrangThaiMo ? 'bg-green-500' : 'bg-gray-300'}`}
+                 >
+                    <div className={`w-6 h-6 bg-white rounded-full shadow-lg transition-all duration-500 transform ${systemSettings.TrangThaiMo ? 'translate-x-6 rotate-180' : 'translate-x-0'}`}></div>
+                 </button>
+              </div>
+
+              <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100 italic text-[11px] font-bold text-blue-800/60 leading-relaxed flex gap-3">
+                 <i className="fas fa-info-circle mt-1"></i>
+                 <span>Lưu ý: Ngay cả khi cổng đóng, các hồ sơ đang trong trạng thái <span className="text-orange-600 uppercase tracking-tighter">[Đang giải trình]</span> vẫn có thể chỉnh sửa.</span>
+              </div>
+           </div>
+        </div>
+
+        <div className="bg-white p-10 border rounded-3xl shadow-sm space-y-8 relative overflow-hidden group hover:shadow-xl transition-all">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-full -z-10 opacity-50 group-hover:scale-110 transition-transform"></div>
+           <div className="flex items-center gap-4 border-b border-gray-100 pb-6">
+              <div className="w-12 h-12 bg-blue-900 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-900/10"><i className="fas fa-bullhorn animate-bounce"></i></div>
+              <div>
+                 <h4 className="text-sm font-black text-blue-900 uppercase tracking-[0.2em]">Thông tin thông báo</h4>
+                 <p className="text-[10px] font-bold text-gray-400 uppercase mt-1 tracking-widest">Nội dung sẽ hiển thị trên Dashboard sinh viên</p>
+              </div>
+           </div>
+
+           <div className="space-y-8">
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Thông báo khi cổng mở</label>
+                    <span className="px-2 py-0.5 bg-green-100 text-green-600 text-[8px] font-black uppercase rounded">Mặc định</span>
+                 </div>
+                 <textarea 
+                    value={systemSettings.ThongBaoHieuLuc} 
+                    onChange={e => setSystemSettings({ ...systemSettings, ThongBaoHieuLuc: e.target.value })}
+                    onBlur={() => handleSaveSettings({ ThongBaoHieuLuc: systemSettings.ThongBaoHieuLuc })}
+                    className="w-full px-6 py-5 bg-gray-50 border-2 border-gray-100 rounded-2xl text-sm font-bold focus:border-blue-900 transition-all outline-none min-h-[120px] shadow-inner" 
+                    placeholder="VD: Cổng nộp hồ sơ đang mở. Hạn chót đến 23:59 ngày..."
+                 />
+              </div>
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Thông báo khi cổng đóng</label>
+                    <span className="px-2 py-0.5 bg-red-100 text-red-600 text-[8px] font-black uppercase rounded">Mặc định</span>
+                 </div>
+                 <textarea 
+                    value={systemSettings.ThongBaoHetHan} 
+                    onChange={e => setSystemSettings({ ...systemSettings, ThongBaoHetHan: e.target.value })}
+                    onBlur={() => handleSaveSettings({ ThongBaoHetHan: systemSettings.ThongBaoHetHan })}
+                    className="w-full px-6 py-5 bg-gray-50 border-2 border-gray-100 rounded-2xl text-sm font-bold focus:border-red-500 transition-all outline-none min-h-[120px] shadow-inner" 
+                    placeholder="VD: Cổng nộp hồ sơ hiện đã đóng. Vui lòng liên hệ Admin nếu có thắc mắc."
+                 />
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
+
   const SIDEBAR_ITEMS: { key: typeof activeTab, icon: string, label: string }[] = [
     { key: 'profiles', icon: 'fa-folder-open', label: 'Quản lý hồ sơ' },
     { key: 'stats', icon: 'fa-chart-bar', label: 'Thống kê' },
@@ -395,6 +536,7 @@ const AdminDashboard: React.FC<{
     { key: 'users', icon: 'fa-users', label: 'Quản lý người dùng' },
     { key: 'posts', icon: 'fa-newspaper', label: 'Quản lý bài viết' },
     { key: 'faces', icon: 'fa-award', label: 'Vinh danh' },
+    { key: 'settings', icon: 'fa-cog', label: 'Cấu hình hệ thống' },
   ];
 
   // ====== RENDER CONTENT AREAS ======
@@ -999,6 +1141,7 @@ const AdminDashboard: React.FC<{
       case 'users': return renderUsers();
       case 'posts': return renderPosts();
       case 'faces': return renderFaces();
+      case 'settings': return renderSettings();
       default: return null;
     }
   };
@@ -1244,6 +1387,7 @@ const AdminDashboard: React.FC<{
                           // Hide level for simple point-based criteria. Show it if explicitly it has points or user provided a decision
                           const showLevel = !isSimpleEvidence && (hasLevelPoints || (ev.type && ev.type !== EvidenceType.NO_DECISION));
                           const showDecisionNumber = !!ev.decisionNumber;
+                          const showQty = ev.qty !== undefined && ev.qty > 0;
 
                           return (
                             <div key={ev.id} className={`group bg-white p-5 border-2 rounded-2xl flex gap-6 items-center transition-all hover:border-blue-500/30 ${ev.status === 'Approved' ? 'border-green-500/20 bg-green-50/20' : ev.status === 'Rejected' ? 'border-red-500/20 bg-red-50/20' : ev.status === 'NeedsExplanation' ? 'border-orange-500/30 bg-orange-50/30' : 'border-gray-100'}`}>
@@ -1283,6 +1427,15 @@ const AdminDashboard: React.FC<{
                                        <span title="Số quyết định" className="text-gray-500">
                                          <i className="fas fa-hashtag mr-1"></i>
                                          SQĐ: {ev.decisionNumber}
+                                       </span>
+                                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                     </>
+                                   )}
+                                   {showQty && (
+                                     <>
+                                       <span title="Số lượng / Ngày tình nguyện / Lần" className="text-green-600">
+                                         <i className="fas fa-layer-group mr-1"></i>
+                                         SL: {ev.qty}
                                        </span>
                                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                      </>

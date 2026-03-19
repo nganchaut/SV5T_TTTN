@@ -38,3 +38,18 @@ class VinhDanh(models.Model):
 
     def __str__(self):
         return f"{self.TenSinhVien} - {self.ThanhTich}"
+
+class CauHinhHeThong(models.Model):
+    ThoiGianBatDau = models.DateTimeField(null=True, blank=True, verbose_name="Thời gian bắt đầu nộp")
+    ThoiGianKetThuc = models.DateTimeField(null=True, blank=True, verbose_name="Thời gian kết thúc nộp")
+    TrangThaiMo = models.BooleanField(default=True, verbose_name="Cổng đang mở")
+    ThongBaoHieuLuc = models.CharField(max_length=500, default="Hiện tại đang trong thời gian nộp hồ sơ xét duyệt Sinh viên 5 tốt.", verbose_name="Thông báo khi đang mở")
+    ThongBaoHetHan = models.CharField(max_length=500, default="Cổng nộp hồ sơ hiện đang đóng. Vui lòng quay lại sau.", verbose_name="Thông báo khi hết hạn")
+
+    class Meta:
+        db_table = 'CauHinhHeThong'
+        verbose_name = 'Cấu hình hệ thống'
+        verbose_name_plural = 'Cấu hình hệ thống'
+
+    def __str__(self):
+        return "Cấu hình hệ thống"

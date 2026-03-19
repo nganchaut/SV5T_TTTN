@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     BaiVietListView, BaiVietDetailView, AdminBaiVietListView,
-    VinhDanhListView, VinhDanhDetailView,
+    VinhDanhListView, VinhDanhDetailView, CauHinhHeThongView,
 )
 
 urlpatterns = [
@@ -12,4 +12,5 @@ urlpatterns = [
     path('featured/<int:pk>/', VinhDanhDetailView.as_view(), name='featured-detail'),
     # Admin
     path('admin/posts/', AdminBaiVietListView.as_view(), name='admin-posts-list'),
+    path('settings/', CauHinhHeThongView.as_view(), name='system-settings'),
 ]

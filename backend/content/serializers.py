@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BaiViet, VinhDanh
+from .models import BaiViet, VinhDanh, CauHinhHeThong
 
 
 class BaiVietSerializer(serializers.ModelSerializer):
@@ -19,3 +19,8 @@ class VinhDanhSerializer(serializers.ModelSerializer):
         fields = ['id', 'TenSinhVien', 'ThanhTich', 'NoiDung',
                   'HinhAnh', 'NgayTao']
         read_only_fields = ['id', 'NgayTao']
+
+class CauHinhHeThongSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CauHinhHeThong
+        fields = '__all__'

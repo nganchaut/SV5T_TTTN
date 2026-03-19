@@ -110,3 +110,11 @@ export interface Post {
   image: string;
   imageFile?: File;
 }
+
+export interface SystemConfig {
+  ThoiGianBatDau: string | null;
+  ThoiGianKetThuc: string | null;
+  TrangThaiMo: boolean;
+  ThongBaoHieuLuc: string;
+  ThongBaoHetHan: string;
+}

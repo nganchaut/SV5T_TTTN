@@ -11,6 +11,7 @@ from .serializers import (
 from accounts.permissions import IsAdmin, IsSinhVien
 from students.models import SinhVien
 from students.serializers import SinhVienProfileSerializer
+from students.utils import can_student_edit
 
 
 class MinhChungListView(APIView):
@@ -43,6 +44,9 @@ class MinhChungListView(APIView):
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Chưa có hồ sơ sinh viên.'}, status=status.HTTP_404_NOT_FOUND)
 
+        if not can_student_edit(sv):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
+
         if sv.TrangThaiHoSo == 'Approved':
             return Response({'detail': 'Hồ sơ đã được duyệt, không thể nộp thêm minh chứng.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -69,6 +73,10 @@ class MinhChungDetailView(APIView):
         mc = self.get_object(pk, request.user)
         if not mc:
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_student_edit(mc.SinhVien):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
+
         if mc.TrangThai not in ['Pending', 'NeedsExplanation']:
             return Response({'detail': 'Không thể sửa minh chứng đã duyệt/từ chối.'}, status=status.HTTP_400_BAD_REQUEST)
         serializer = MinhChungSubmitSerializer(mc, data=request.data, partial=True)
@@ -81,6 +89,10 @@ class MinhChungDetailView(APIView):
         mc = self.get_object(pk, request.user)
         if not mc:
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_student_edit(mc.SinhVien):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
+
         if mc.TrangThai == 'Approved':
             return Response({'detail': 'Không thể xóa minh chứng đã duyệt.'}, status=status.HTTP_400_BAD_REQUEST)
         sv = mc.SinhVien

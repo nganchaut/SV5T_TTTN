@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { CriterionType, Evidence, StudentProfile, EvidenceLevel, EvidenceType, FieldVerification } from '../types';
+import { CriterionType, Evidence, StudentProfile, EvidenceLevel, EvidenceType, FieldVerification, SystemConfig } from '../types';
 import { SUB_CRITERIA, POINT_MATRIX } from '../constants';
 import EvidenceForm from '../components/EvidenceForm';
 import { formatUrl } from '../utils/mapper';
@@ -121,7 +121,8 @@ const StudentDashboard: React.FC<{
   onResubmit: () => void;
   onUnsubmit: () => void;
   criteriaGroups: any[];
-}> = ({ student, addEvidence, removeEvidence, updateEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit, criteriaGroups }) => {
+  systemSettings: SystemConfig | null;
+}> = ({ student, addEvidence, removeEvidence, updateEvidence, updateProfile, updateEvidenceExplanation, updateFieldExplanation, onSubmit, onResubmit, onUnsubmit, criteriaGroups, systemSettings }) => {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [addingTo, setAddingTo] = useState<{ type: CriterionType, isHard: boolean, subName: string, subId: string, editingEvidence?: Evidence } | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -338,10 +339,28 @@ const StudentDashboard: React.FC<{
     });
   };
 
-  const isLocked = ['Submitted', 'Approved', 'Rejected'].includes(student.status);
+  const isLocked = ['Submitted', 'Pending', 'Approved', 'Processing'].includes(student.status);
   const isProcessing = student.status === 'Processing';
   const isApproved = student.status === 'Approved';
   const isRejected = student.status === 'Rejected';
+
+  // Submission Window Logic
+  const isSubmissionOpen = React.useMemo(() => {
+    if (!systemSettings) return true; // Default to open if no settings found
+    if (!systemSettings.TrangThaiMo) return false;
+
+    const now = new Date();
+    const start = systemSettings.ThoiGianBatDau ? new Date(systemSettings.ThoiGianBatDau) : null;
+    const end = systemSettings.ThoiGianKetThuc ? new Date(systemSettings.ThoiGianKetThuc) : null;
+
+    if (start && now < start) return false;
+    if (end && now > end) return false;
+
+    return true;
+  }, [systemSettings]);
+
+  // Student can edit if window is open OR they are in "Processing" state (for explanations)
+  const canEdit = isSubmissionOpen || isProcessing;
 
   // Lấy danh sách các mục bị Admin bắt lỗi
   const flaggedEvidences: { cat: CriterionType, ev: Evidence }[] = [];
@@ -358,12 +377,29 @@ const StudentDashboard: React.FC<{
   if (student.verifications.english?.status === 'NeedsExplanation') flaggedFields.push({ key: 'english', label: 'Ngoại ngữ', val: `${student.englishLevel}` });
   if (student.verifications.partyMember?.status === 'NeedsExplanation') flaggedFields.push({ key: 'partyMember', label: 'Đảng viên', val: student.isPartyMember ? 'Có' : 'Không' });
 
-  const [isEditModeInProcessing, setIsEditModeInProcessing] = useState(false);
+
 
   // GIAO DIỆN KHI HỒ SƠ ĐANG CHỜ DUYỆT (LOCK)
   if (student.status === 'Submitted') {
     return (
       <>
+        {/* Submission Window Banner */}
+        {!isSubmissionOpen && !isApproved && !isRejected && (
+          <div className="bg-red-600 text-white px-4 py-3 flex items-center justify-center gap-4 animate-pulse-slow">
+            <i className="fas fa-exclamation-triangle"></i>
+            <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+              {systemSettings?.ThongBaoHetHan || "Cổng nộp hồ sơ hiện đã đóng. Bạn không thể nộp hoặc chỉnh sửa hồ sơ mới."}
+            </span>
+            {!isProcessing && <div className="px-3 py-1 bg-white/20 rounded border border-white/30 text-[8px]">READ ONLY</div>}
+          </div>
+        )}
+        {isSubmissionOpen && !isApproved && !isRejected && systemSettings?.ThongBaoHieuLuc && (
+           <div className="bg-blue-600 text-white px-4 py-2 flex items-center justify-center gap-4 animate-fade-in text-[9px] font-bold uppercase tracking-widest">
+              <i className="fas fa-bullhorn"></i>
+              <span>{systemSettings.ThongBaoHieuLuc}</span>
+           </div>
+        )}
+
         <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-10 text-white shadow-2xl rounded-lg">
           <div className="flex items-center gap-6 mb-4">
@@ -379,12 +415,19 @@ const StudentDashboard: React.FC<{
             Hồ sơ của bạn đã được gửi lên hệ thống và đang chờ Ban thư ký Hội Sinh viên thẩm định. Trong thời gian này, các tính năng chỉnh sửa sẽ tạm khóa để đảm bảo tính toàn vẹn của dữ liệu.
           </p>
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-wrap gap-4">
-            <button 
-              onClick={() => setShowUnsubmitModal(true)} 
-              className="px-8 py-3 bg-white text-blue-600 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-lg active:scale-95"
-            >
-              Hủy nộp để chỉnh sửa
-            </button>
+            {flaggedEvidences.length === 0 && flaggedFields.length === 0 && canEdit && (
+              <button 
+                onClick={() => setShowUnsubmitModal(true)} 
+                className="px-8 py-3 bg-white text-blue-600 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-lg active:scale-95"
+              >
+                Hủy nộp để chỉnh sửa
+              </button>
+            )}
+            {!canEdit && student.status === 'Submitted' && (
+               <div className="px-6 py-3 bg-white/10 border border-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
+                  <i className="fas fa-lock"></i> Hiện đã hết hạn chỉnh sửa
+               </div>
+            )}
             <button 
               onClick={() => window.print()}
               className="px-8 py-3 bg-blue-700/50 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all border border-white/20"
@@ -478,7 +521,7 @@ const StudentDashboard: React.FC<{
 
 
   // GIAO DIỆN CHỈ HIỂN THỊ KHI ĐANG GIẢI TRÌNH
-  if (isProcessing && !isEditModeInProcessing) {
+  if (isProcessing) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
         <div className="bg-[#f26522] p-10 text-white shadow-2xl rounded-sm relative overflow-hidden">
@@ -491,12 +534,7 @@ const StudentDashboard: React.FC<{
                 <p className="text-orange-100 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">Hội đồng đang chờ phản hồi từ bạn</p>
               </div>
             </div>
-            <button 
-              onClick={() => setIsEditModeInProcessing(true)}
-              className="px-6 py-3 bg-white text-[#f26522] font-black text-[10px] uppercase tracking-widest rounded-lg hover:bg-blue-900 hover:text-white transition-all shadow-xl"
-            >
-              <i className="fas fa-edit mr-2"></i>Chỉnh sửa hồ sơ chung
-            </button>
+
           </div>
           
           <div className="mt-10 p-8 bg-white/10 rounded-xl border border-white/20 backdrop-blur-sm">
@@ -628,38 +666,19 @@ const StudentDashboard: React.FC<{
         <div className="py-16 text-center border-t border-gray-100">
           <button
             onClick={handleFinalSubmitExplanation}
-            disabled={isResubmitting}
+            disabled={isResubmitting || !canEdit}
             className={`px-20 py-6 font-black text-xs uppercase tracking-[0.5em] transition-all shadow-2xl active:scale-95 flex items-center gap-4 mx-auto
-              ${isResubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-900 text-white hover:bg-[#f26522]'}`}
+              ${(isResubmitting || !canEdit) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-900 text-white hover:bg-[#f26522]'}`}
           >
             {isResubmitting && <i className="fas fa-spinner fa-spin"></i>}
-            GỬI PHẢN HỒI GIẢI TRÌNH
+            {canEdit ? 'GỬI PHẢN HỒI GIẢI TRÌNH' : 'HẾT HẠN GIẢI TRÌNH'}
           </button>
         </div>
       </div>
     );
   }
 
-  // Nếu đang ở chế độ sửa trong khi Processing, chèn thêm banner cảnh báo ở đầu
-  const processingBanner = isProcessing && isEditModeInProcessing ? (
-    <div className="max-w-6xl mx-auto px-4 pt-8">
-      <div className="bg-blue-900 p-6 rounded-2xl flex items-center justify-between text-white shadow-2xl border-2 border-orange-500 animate-fade-down">
-        <div className="flex items-center gap-6">
-          <div className="w-12 h-12 bg-orange-500 rounded-2xl flex items-center justify-center animate-pulse shadow-lg shadow-orange-500/20"><i className="fas fa-info-circle text-xl"></i></div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-1">Chế độ chỉnh sửa trực tiếp</p>
-            <p className="text-sm font-medium opacity-90">Bạn có thể sửa đổi thông tin. Sau khi xong, hãy nhấn nút quay lại để gửi giải trình.</p>
-          </div>
-        </div>
-        <button 
-          onClick={() => setIsEditModeInProcessing(false)}
-          className="px-8 py-3 bg-orange-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 active:scale-95"
-        >
-          <i className="fas fa-reply mr-2"></i>Quay lại Giải trình
-        </button>
-      </div>
-    </div>
-  ) : null;
+
 
   // GIAO DIỆN NỘP MỚI (CHỈ HIỆN KHI LÀ DRAFT)
   const currentStep = STEPS[currentStepIdx];
@@ -818,13 +837,21 @@ const StudentDashboard: React.FC<{
                           <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-blue-600 rounded inline-block mb-1">Bắt buộc</span>
                           <p className="text-xs font-bold text-gray-800 leading-tight">{sub.MoTa}</p>
                         </div>
-                        {!isLocked && (
+                        {!isLocked && canEdit && (
                           <button 
                             onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi })} 
                             className={`px-4 py-2 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${subEvs.length > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'}`}
                           >
                             {subEvs.length > 0 ? <><i className="fas fa-check-circle mr-1"></i>Đã nộp</> : <><i className="fas fa-upload mr-1"></i>Tải lên</>}
                           </button>
+                        )}
+                        {!isLocked && !canEdit && (
+                           <button 
+                             disabled
+                             className="px-4 py-2 bg-gray-200 text-gray-400 text-[9px] font-black uppercase tracking-widest rounded-lg cursor-not-allowed flex items-center gap-1.5"
+                           >
+                              <i className="fas fa-lock text-[8px]"></i> Khóa
+                           </button>
                         )}
                       </div>
                       {subEvs.length > 0 && (
@@ -834,11 +861,14 @@ const StudentDashboard: React.FC<{
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-bold text-gray-900 truncate max-w-[200px]">{ev.name}</span>
                                 <div className="flex items-center gap-2">
-                                  {!isLocked && (
+                                  {!isLocked && canEdit && (
                                     <>
                                       <button onClick={() => setAddingTo({ type: cat, isHard: true, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-400 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
                                       <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-400 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
                                     </>
+                                  )}
+                                  {!isLocked && !canEdit && (
+                                     <i className="fas fa-lock text-[10px] text-gray-300" title="Hết hạn chỉnh sửa"></i>
                                   )}
                                 </div>
                               </div>
@@ -894,13 +924,18 @@ const StudentDashboard: React.FC<{
                         <span className="text-[8px] font-black uppercase px-2 py-0.5 text-white bg-orange-500 rounded inline-block mb-1">Cộng</span>
                         <p className="text-[11px] font-bold text-gray-800 leading-snug">{sub.MoTa}</p>
                       </div>
-                      {!isLocked && (
+                      {!isLocked && canEdit && (
                         <button 
                           onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi })} 
                           className={`px-3 py-1.5 font-black text-[9px] uppercase tracking-widest rounded-lg transition-all whitespace-nowrap ${subEvs.length > 0 ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'}`}
                         >
                           {subEvs.length > 0 ? <><i className="fas fa-check-circle mr-1"></i>Đã nộp</> : <><i className="fas fa-upload mr-1"></i>Tải lên</>}
                         </button>
+                      )}
+                      {!isLocked && !canEdit && (
+                         <div className="px-3 py-1.5 bg-gray-100 text-gray-400 text-[8px] font-black uppercase rounded text-center">
+                            <i className="fas fa-lock"></i>
+                         </div>
                       )}
                     </div>
                     {subEvs.length > 0 && (
@@ -913,11 +948,14 @@ const StudentDashboard: React.FC<{
                                 <span className="text-[9px] font-black text-orange-600 mt-0.5">+{ev.points}đ</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                {!isLocked && (
+                                {!isLocked && canEdit && (
                                   <>
                                     <button onClick={() => setAddingTo({ type: cat, isHard: false, subName: sub.MoTa, subId: sub.MaTieuChi, editingEvidence: ev })} className="text-gray-300 hover:text-blue-500"><i className="fas fa-edit text-[10px]"></i></button>
                                     <button onClick={() => removeEvidence(cat, ev.id)} className="text-gray-300 hover:text-red-500"><i className="fas fa-trash-alt text-[10px]"></i></button>
                                   </>
+                                )}
+                                {!isLocked && !canEdit && (
+                                   <i className="fas fa-lock text-[10px] text-gray-200"></i>
                                 )}
                               </div>
                             </div>
@@ -962,8 +1000,8 @@ const StudentDashboard: React.FC<{
           <p className="text-[9px] font-black uppercase tracking-[0.4em] mb-2 text-orange-400">Tổng điểm tích lũy dự kiến</p>
           <h3 className="text-6xl font-bold mb-10 font-formal">{student.totalScore}</h3>
 
-          <button disabled={isLocked || !allHardMet} onClick={onSubmit} className={`px-16 py-5 font-bold text-[10px] uppercase tracking-[0.3em] transition-all border-2 rounded-lg ${isLocked || !allHardMet ? 'border-gray-600 text-gray-600 cursor-not-allowed bg-transparent' : 'bg-orange-600 text-white hover:bg-white hover:text-blue-900 border-transparent active:scale-95'}`}>
-            {isLocked ? 'HỒ SƠ ĐANG CHỜ DUYỆT' : 'GỬI XÉT DUYỆT CHÍNH THỨC'}
+          <button disabled={isLocked || !allHardMet || !canEdit} onClick={onSubmit} className={`px-16 py-5 font-bold text-[10px] uppercase tracking-[0.3em] transition-all border-2 rounded-lg ${isLocked || !allHardMet || !canEdit ? 'border-gray-600 text-gray-600 cursor-not-allowed bg-transparent' : 'bg-orange-600 text-white hover:bg-white hover:text-blue-900 border-transparent active:scale-95'}`}>
+            {isLocked ? 'HỒ SƠ ĐANG CHỜ DUYỆT' : (!canEdit ? 'HẾT HẠN NỘP HỒ SƠ' : 'GỬI XÉT DUYỆT CHÍNH THỨC')}
           </button>
         </div>
       </div>
@@ -978,7 +1016,6 @@ const StudentDashboard: React.FC<{
 
   return (
     <div className="pb-24">
-      {processingBanner}
       <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in space-y-10 font-sans">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 border-b pb-8">

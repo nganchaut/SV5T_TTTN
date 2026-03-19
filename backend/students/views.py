@@ -11,6 +11,7 @@ from .serializers import (
     SinhVienAdminSerializer, XacMinhSerializer
 )
 from accounts.permissions import IsAdmin, IsSinhVien
+from .utils import can_student_edit
 
 
 class SinhVienMeView(APIView):
@@ -30,6 +31,10 @@ class SinhVienMeView(APIView):
             sv = request.user.sinh_vien
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Chưa có hồ sơ sinh viên.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not can_student_edit(sv):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = SinhVienUpdateSerializer(sv, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -45,6 +50,9 @@ class SinhVienSubmitView(APIView):
             sv = request.user.sinh_vien
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Chưa có hồ sơ.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_student_edit(sv):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
 
         if sv.TrangThaiHoSo not in ['Draft', 'Processing']:
             return Response(
@@ -79,6 +87,9 @@ class SinhVienUnsubmitView(APIView):
             sv = request.user.sinh_vien
         except SinhVien.DoesNotExist:
             return Response({'detail': 'Không tìm thấy hồ sơ.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not can_student_edit(sv):
+            return Response({'detail': 'Cổng nộp hồ sơ hiện đang đóng.'}, status=status.HTTP_403_FORBIDDEN)
 
         if sv.TrangThaiHoSo != 'Submitted':
             return Response(

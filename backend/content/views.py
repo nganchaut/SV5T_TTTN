@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from .models import BaiViet, VinhDanh
-from .serializers import BaiVietSerializer, VinhDanhSerializer
+from .models import BaiViet, VinhDanh, CauHinhHeThong
+from .serializers import BaiVietSerializer, VinhDanhSerializer, CauHinhHeThongSerializer
 from accounts.permissions import IsAdmin, IsAdminOrReadOnly
 
 
@@ -119,3 +119,27 @@ class VinhDanhDetailView(APIView):
             return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
         obj.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class CauHinhHeThongView(APIView):
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdmin()]
+
+    def get(self, request):
+        obj = CauHinhHeThong.objects.first()
+        if not obj:
+            # Create a default one if none exists
+            obj = CauHinhHeThong.objects.create()
+        return Response(CauHinhHeThongSerializer(obj).data)
+
+    def post(self, request):
+        obj = CauHinhHeThong.objects.first()
+        if obj:
+            serializer = CauHinhHeThongSerializer(obj, data=request.data, partial=True)
+        else:
+            serializer = CauHinhHeThongSerializer(data=request.data)
+        
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

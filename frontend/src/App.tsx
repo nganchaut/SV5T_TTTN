@@ -7,6 +7,8 @@ import { CriterionType, Evidence, StudentProfile, FeaturedFace, Post } from './t
 import { authService } from './services/authService';
 import { adminService, publicService } from './services/adminService';
 import { studentService } from './services/studentService';
+import systemService from './services/systemService';
+import { SystemConfig } from './types';
 
 // Hooks
 import { useStudentActions } from './hooks/useStudentActions';
@@ -23,6 +25,7 @@ const App: React.FC = () => {
   const [students, setStudents] = useState<StudentProfile[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string>('');
   const [criteriaGroups, setCriteriaGroups] = useState<any[]>([]);
+  const [systemSettings, setSystemSettings] = useState<SystemConfig | null>(null);
   
   const fallbackStudent: StudentProfile = {
     id: 'LOADING', fullName: 'Đang tải...', studentId: '', class: '', faculty: '',
@@ -67,6 +70,7 @@ const App: React.FC = () => {
     publicService.getFaces().then(setFaces).catch(console.error);
     publicService.getCriteria().then(setCriteriaGroups).catch(console.error);
     publicService.getPosts().then(setPosts).catch(console.error);
+    systemService.getSettings().then(setSystemSettings).catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -161,6 +165,8 @@ const App: React.FC = () => {
           onAddPost={onAddPost}
           onUpdatePost={onUpdatePost}
           onDeletePost={onDeletePost}
+          systemSettings={systemSettings}
+          setSystemSettings={setSystemSettings}
         />
       </Layout>
     </>
