@@ -55,12 +55,12 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-4 mt-12">
-            <img src="https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=400&h=500" alt="Students" className="rounded-2xl border-2 border-white/10 w-full object-cover h-64" />
-            <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=400&h=400" alt="Study" className="rounded-2xl border-2 border-white/10 w-full object-cover h-48" />
+            <img src="/images/due_campus.png" alt="Students" className="rounded-2xl border-2 border-white/10 w-full object-cover h-64" />
+            <img src="/images/sv5t_award.png" alt="Study" className="rounded-2xl border-2 border-white/10 w-full object-cover h-48" />
           </div>
           <div className="space-y-4">
-            <img src="https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&q=80&w=400&h=400" alt="Team" className="rounded-2xl border-2 border-white/10 w-full object-cover h-48" />
-            <img src="https://images.unsplash.com/photo-1511556532299-8f662fc26c06?auto=format&fit=crop&q=80&w=400&h=500" alt="Success" className="rounded-2xl border-2 border-white/10 w-full object-cover h-64" />
+            <img src="/images/sv5t_volunteering.png" alt="Team" className="rounded-2xl border-2 border-white/10 w-full object-cover h-48" />
+            <img src="/images/sv5t_grad.png" alt="Success" className="rounded-2xl border-2 border-white/10 w-full object-cover h-64" />
           </div>
         </div>
       </div>
