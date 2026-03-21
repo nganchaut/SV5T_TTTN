@@ -26,12 +26,25 @@ class Command(BaseCommand):
                 'HoTen': 'Thư ký',
                 'Email': 'thuky@due.edu.vn',
             },
+            {
+                'TenDangNhap': '221121514105',
+                'password': 'Student@123',
+                'VaiTro': 'SinhVien',
+                'is_staff': False,
+                'is_superuser': False,
+                'HoTen': 'Sinh viên mẫu',
+                'Email': 'student@st.due.udn.vn',
+                'Lop': '22KT01',
+                'Khoa': 'Kinh tế',
+            },
         ]
 
         for u in users:
             ho_ten = u.pop('HoTen')
             email = u.pop('Email')
             password = u.pop('password')
+            lop = u.pop('Lop', '')
+            khoa = u.pop('Khoa', '')
 
             acc, created = TaiKhoan.objects.get_or_create(
                 TenDangNhap=u['TenDangNhap'],
@@ -46,7 +59,18 @@ class Command(BaseCommand):
             if created:
                 acc.set_password(password)
                 acc.save()
-                NguoiDung.objects.create(TaiKhoan=acc, HoTen=ho_ten, Email=email)
+                
+                if acc.VaiTro == 'SinhVien':
+                    from students.models import SinhVien
+                    SinhVien.objects.create(
+                        TaiKhoan=acc,
+                        HoTen=ho_ten,
+                        MaSV=acc.TenDangNhap,
+                        Lop=lop,
+                        Khoa=khoa
+                    )
+                else:
+                    NguoiDung.objects.create(TaiKhoan=acc, HoTen=ho_ten, Email=email)
                 self.stdout.write(self.style.SUCCESS(f"Created user: {u['TenDangNhap']}"))
             else:
                 acc.TrangThai = 'Active'
