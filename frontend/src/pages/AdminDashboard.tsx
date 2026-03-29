@@ -634,14 +634,25 @@ const AdminDashboard: React.FC<{
                       <div className="w-9 h-9 flex items-center justify-center">
                         {s.status === 'Rejected' && (
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              if (!window.confirm(`Xóa vĩnh viễn hồ sơ của ${s.fullName}? Hành động này không thể hoàn tác.`)) return;
-                              try {
-                                await adminService.deleteStudent(s.id);
-                                toast.success(`Đã xóa hồ sơ ${s.fullName}`);
-                                window.location.reload();
-                              } catch { toast.error('Xóa thất bại'); }
+                              setFeedbackModal({
+                                show: true,
+                                type: 'Rejected',
+                                title: 'XÓA VĨNH VIỄN HỒ SƠ',
+                                message: `Bạn có chắc chắn muốn xóa vĩnh viễn hồ sơ của sinh viên ${s.fullName}? Hành động này không thể hoàn tác.`,
+                                requireFeedback: false,
+                                onSubmit: async () => {
+                                  try {
+                                    await adminService.deleteStudent(s.id);
+                                    toast.success(`Đã xóa hồ sơ ${s.fullName}`);
+                                    setFeedbackModal(prev => ({ ...prev, show: false }));
+                                    window.location.reload();
+                                  } catch { 
+                                    toast.error('Xóa thất bại'); 
+                                  }
+                                }
+                              });
                             }}
                             className="w-full h-full rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center border border-red-200"
                             title="Xóa hồ sơ bị từ chối"
