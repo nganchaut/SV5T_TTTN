@@ -185,6 +185,12 @@ const AdminDashboard: React.FC<{
       return;
     }
 
+    // Fast actions without modal
+    if (action === 'Approved' || action === 'Rejected') {
+      onUpdateEvidenceStatus(cat, id, action);
+      return;
+    }
+
     const actionTxt = action === 'Approved' ? 'DUYỆT MINH CHỨNG' : action === 'Rejected' ? 'TỪ CHỐI MINH CHỨNG' : 'YÊU CẦU GIẢI TRÌNH';
     
     setModalFeedback('');
@@ -206,6 +212,12 @@ const AdminDashboard: React.FC<{
     const currentStatus = selectedStudent.verifications[fieldKey]?.status;
     if (currentStatus === action) {
       onUpdateFieldVerification(fieldKey, 'Pending');
+      return;
+    }
+
+    // Fast actions without modal
+    if (action === 'Approved' || action === 'Rejected') {
+      onUpdateFieldVerification(fieldKey, action);
       return;
     }
 
