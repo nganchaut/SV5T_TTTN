@@ -190,14 +190,16 @@ const HomeView: React.FC<{ faces: FeaturedFace[], posts: any[], userRole: 'stude
             <div key={i} className="bg-white border rounded-2xl overflow-hidden transition-all group flex flex-col cursor-pointer hover:border-orange-500/50" onClick={() => onNavigate(`/posts/${post.id}`)}>
               <div className="aspect-video bg-gray-100 overflow-hidden relative">
                 {post.image ? (
-                  <img src={post.image} className="w-full h-full object-cover  transition-transform duration-500" alt={post.title} />
+                  <img src={post.image} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={post.title} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-300">
                     <i className="fas fa-image text-4xl"></i>
                   </div>
                 )}
-                <div className="absolute top-4 left-4">
-                  <span className="px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase rounded-full">Tin tức</span>
+                {/* Overlay gradient để badge luôn đọc được */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10 pointer-events-none"></div>
+                <div className="absolute top-4 left-4 z-10">
+                  <span className="px-3 py-1 bg-orange-500 text-white text-[10px] font-black uppercase rounded-full shadow-md">Tin tức</span>
                 </div>
               </div>
               <div className="p-8 flex-1 flex flex-col justify-between">

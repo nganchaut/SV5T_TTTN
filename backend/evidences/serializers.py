@@ -20,6 +20,7 @@ class MinhChungSerializer(serializers.ModelSerializer):
             'TenMinhChung', 'CapDo', 'CapDoDisplay',
             'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
             'DuongDanFile', 'FileUrl', 'TenFile', 'NgayNop',
+            'NgayMinhChung', 'NgayGiaiTrinh',
             'Diem', 'is_tieu_chi_cung',
             'TrangThai', 'TrangThaiDisplay',
             'PhanHoiAdmin', 'GiaiTrinhSV',
@@ -49,7 +50,7 @@ class MinhChungSubmitSerializer(serializers.ModelSerializer):
         fields = [
             'TieuChi', 'TenMinhChung', 'CapDo',
             'LoaiMinhChung', 'SoQuyetDinh', 'SoLuong',
-            'DuongDanFile', 'TenFile',
+            'DuongDanFile', 'TenFile', 'NgayMinhChung',
         ]
 
     def validate(self, data):

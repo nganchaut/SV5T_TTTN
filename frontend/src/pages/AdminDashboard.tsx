@@ -625,6 +625,23 @@ const AdminDashboard: React.FC<{
                     <button onClick={() => { onSelectStudent(s.id); setIsReviewing(true); }} className="px-5 py-2.5 bg-blue-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all border border-blue-950">
                       <i className="fas fa-eye mr-1.5"></i>Thẩm định
                     </button>
+                    {s.status === 'Rejected' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(`Xóa vĩnh viễn hồ sơ của ${s.fullName}? Hành động này không thể hoàn tác.`)) return;
+                          try {
+                            await adminService.deleteStudent(s.id);
+                            toast.success(`Đã xóa hồ sơ ${s.fullName}`);
+                            window.location.reload();
+                          } catch { toast.error('Xóa thất bại'); }
+                        }}
+                        className="w-9 h-9 rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center border border-red-200"
+                        title="Xóa hồ sơ bị từ chối"
+                      >
+                        <i className="fas fa-trash text-[10px]"></i>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -652,9 +669,9 @@ const AdminDashboard: React.FC<{
       return { name: f, total: sInF.length, approved: appInF };
     });
 
-    // Top students: Exclude rejected profiles
+    // Top students: Only show fully APPROVED profiles
     const topStudents = [...students]
-      .filter(s => s.status !== 'Rejected')
+      .filter(s => s.status === 'Approved')
       .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, 5);
 

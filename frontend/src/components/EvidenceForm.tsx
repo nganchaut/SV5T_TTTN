@@ -23,6 +23,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
   const [qty, setQty] = useState<number | ''>(initialData?.qty || '');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
+  const [evidenceDate, setEvidenceDate] = useState(initialData?.date || '');
 
   const availableSubCriteria = useMemo(() => {
     const profileBasedSlugs = [
@@ -131,7 +132,7 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
       files: files,
       fileName: files.length > 0 ? files[0].name : (initialData?.fileName || ''),
       danh_sach_file: initialData?.danh_sach_file,
-      date: initialData?.date || new Date().toISOString().split('T')[0],
+      date: evidenceDate || new Date().toISOString().split('T')[0],
       points: calculatedPoints,
       isHardCriterion: isHard,
       status: initialData?.status || 'Pending'
@@ -175,6 +176,19 @@ const EvidenceForm: React.FC<EvidenceFormProps> = ({ criterionType, isHard, subC
               placeholder="VD: GCN Hiến máu lần 2..." 
             />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2 tracking-widest">
+            Ngày cấp / Ngày thực hiện <span className="text-orange-400 normal-case font-normal">(tùy chọn)</span>
+          </label>
+          <input
+            type="date"
+            value={evidenceDate}
+            onChange={(e) => setEvidenceDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+            className="w-full px-5 py-4 border border-gray-200 font-bold outline-none focus:border-blue-600 text-xs bg-white text-gray-900 rounded-xl transition-all"
+          />
         </div>
         
         {!isSimpleEvidence && (

@@ -41,6 +41,8 @@ class MinhChung(models.Model):
     DuongDanFile = models.FileField(upload_to=minh_chung_upload_path, blank=True, null=True)
     TenFile = models.CharField(max_length=200, blank=True, null=True)
     NgayNop = models.DateField(auto_now_add=True)
+    NgayMinhChung = models.DateField(null=True, blank=True, verbose_name='Ngày cấp/Ngày thực hiện')
+    NgayGiaiTrinh = models.DateTimeField(null=True, blank=True, verbose_name='Ngày gửi giải trình')
     SoLuong = models.IntegerField(default=1)
     Diem = models.FloatField(default=0)
     TrangThai = models.CharField(max_length=30, choices=TRANG_THAI_CHOICES, default='Pending')

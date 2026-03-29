@@ -43,6 +43,10 @@ export const adminService = {
     return mapBackendStudentToFrontend(returnResponse.data);
   },
 
+  deleteStudent: async (studentId: string): Promise<void> => {
+    await apiClient.delete(`/api/admin/students/${studentId}/delete/`);
+  },
+
   addFace: async (face: Omit<FeaturedFace, 'id'>): Promise<FeaturedFace> => {
     const formData = new FormData();
     formData.append('TenSinhVien', face.name);

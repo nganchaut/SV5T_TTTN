@@ -45,6 +45,7 @@ class CauHinhHeThong(models.Model):
     TrangThaiMo = models.BooleanField(default=True, verbose_name="Cổng đang mở")
     ThongBaoHieuLuc = models.CharField(max_length=500, default="Hiện tại đang trong thời gian nộp hồ sơ xét duyệt Sinh viên 5 tốt.", verbose_name="Thông báo khi đang mở")
     ThongBaoHetHan = models.CharField(max_length=500, default="Cổng nộp hồ sơ hiện đang đóng. Vui lòng quay lại sau.", verbose_name="Thông báo khi hết hạn")
+    HanChotGiaiTrinh = models.DateTimeField(null=True, blank=True, verbose_name="Hạn chót giải trình")
 
     class Meta:
         db_table = 'CauHinhHeThong'

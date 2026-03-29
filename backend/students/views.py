@@ -200,6 +200,23 @@ class AdminSinhVienRejectView(APIView):
         return Response({'detail': 'Đã từ chối hồ sơ.'})
 
 
+class AdminSinhVienDeleteView(APIView):
+    """Admin: Xóa hồ sơ đã bị từ chối"""
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        try:
+            sv = SinhVien.objects.get(pk=pk)
+        except SinhVien.DoesNotExist:
+            return Response({'detail': 'Không tìm thấy.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if sv.TrangThaiHoSo != 'Rejected':
+            return Response({'detail': 'Chỉ có thể xóa hồ sơ đã bị từ chối.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sv.TaiKhoan.delete()  # cascade deletes the student profile too
+        return Response({'detail': 'Đã xóa hồ sơ thành công.'}, status=status.HTTP_204_NO_CONTENT)
+
+
 class AdminSinhVienFeedbackView(APIView):
     permission_classes = [IsAdmin]
 
