@@ -1133,6 +1133,22 @@ const StudentDashboard: React.FC<{
               <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1 italic">Mã sinh viên: {student.studentId} • {student.faculty}</p>
             </div>
           </div>
+
+          {/* Banner thông báo đóng cổng hệ thống */}
+          {!student.is_submission_open && (
+            <div className="mt-8 bg-orange-50 border border-orange-200 p-5 rounded-[24px] flex items-center gap-5 animate-fade-down shadow-sm">
+              <div className="w-14 h-14 bg-orange-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-orange-200">
+                <i className="fas fa-lock text-xl"></i>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-1">Thông báo hệ thống</p>
+                <p className="text-base font-bold text-orange-950 leading-tight">
+                  {student.submission_msg || "Cổng nộp hồ sơ hiện đang đóng. Bạn chỉ có thể xem hồ sơ ở chế độ đọc."}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Step progress */}
           <div className="flex items-center gap-1.5 mt-6 overflow-x-auto pb-2 scrollbar-none">
             {STEPS.map((s, idx) => {
