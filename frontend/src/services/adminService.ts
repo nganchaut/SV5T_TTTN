@@ -27,6 +27,7 @@ export const adminService = {
     if (status === 'Approved') action = 'approve';
     else if (status === 'Rejected') action = 'reject';
     else if (status === 'NeedsExplanation') action = 'request-explain';
+    else if (status === 'Pending') action = 'pending';
     else throw new Error("Invalid evidence status update");
 
     await apiClient.post(`/api/admin/evidences/${evidenceId}/${action}/`, { PhanHoiAdmin: feedback });

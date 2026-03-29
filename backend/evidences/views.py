@@ -189,4 +189,12 @@ class AdminMinhChungReviewView(APIView):
             mc.save()
             return Response({'detail': 'Đã yêu cầu sinh viên giải trình.'})
 
+        elif action == 'pending':
+            mc.TrangThai = 'Pending'
+            mc.Diem = 0
+            mc.PhanHoiAdmin = request.data.get('PhanHoiAdmin', '')
+            mc.save()
+            mc.SinhVien.tinh_tong_diem()
+            return Response({'detail': 'Đã đưa minh chứng về trạng thái chờ.'})
+
         return Response({'detail': 'Hành động không hợp lệ.'}, status=status.HTTP_400_BAD_REQUEST)

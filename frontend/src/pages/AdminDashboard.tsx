@@ -178,6 +178,13 @@ const AdminDashboard: React.FC<{
   };
 
   const handleEvidenceAction = (cat: CriterionType, id: string, action: 'Approved' | 'Rejected' | 'NeedsExplanation') => {
+    // Check current status for toggle
+    const currentEv = (selectedStudent.evidences[cat] || []).find(e => e.id === id);
+    if (currentEv && currentEv.status === action) {
+      onUpdateEvidenceStatus(cat, id, 'Pending');
+      return;
+    }
+
     const actionTxt = action === 'Approved' ? 'DUYỆT MINH CHỨNG' : action === 'Rejected' ? 'TỪ CHỐI MINH CHỨNG' : 'YÊU CẦU GIẢI TRÌNH';
     
     setModalFeedback('');
@@ -195,6 +202,13 @@ const AdminDashboard: React.FC<{
   };
 
   const handleManualDataVerify = (action: 'Approved' | 'Rejected' | 'NeedsExplanation', fieldKey: keyof StudentProfile['verifications'], context: string) => {
+    // Check current status for toggle
+    const currentStatus = selectedStudent.verifications[fieldKey]?.status;
+    if (currentStatus === action) {
+      onUpdateFieldVerification(fieldKey, 'Pending');
+      return;
+    }
+
     const actionTxt = action === 'Approved' ? 'XÁC NHẬN ĐẠT' : action === 'Rejected' ? 'XÁC NHẬN KHÔNG ĐẠT' : 'YÊU CẦU GIẢI TRÌNH';
     
     setModalFeedback('');
