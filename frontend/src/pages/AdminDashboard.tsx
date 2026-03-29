@@ -1477,7 +1477,7 @@ const AdminDashboard: React.FC<{
                                   </div>
                                   <p className="text-sm text-gray-700 font-bold leading-relaxed italic">"{ver.explanation || '(Không có nội dung văn bản)'}"</p>
                                   {ver.explanationDate && (
-                                    <p className="text-[9px] font-black text-blue-300 uppercase mt-2">
+                                    <p className="text-[9px] font-black text-blue-500 uppercase mt-2">
                                       <i className="far fa-clock mr-1.5"></i>
                                       Giải trình lúc: {new Date(ver.explanationDate).toLocaleString('vi-VN')}
                                     </p>
