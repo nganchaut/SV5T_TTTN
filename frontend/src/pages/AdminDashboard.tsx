@@ -412,11 +412,7 @@ const AdminDashboard: React.FC<{
   const hasPendingEvidences = () => {
     if (!selectedStudent) return false;
     
-    // Check general verifications
-    const pendingVerifications = (Object.values(selectedStudent.verifications) as FieldVerification[]).some(v => v.status === 'Pending');
-    if (pendingVerifications) return true;
-
-    // Check all evidences
+    // Only check for actual evidences (certificates, files)
     const pendingEvidences = (Object.values(selectedStudent.evidences) as Evidence[][]).flat().some(e => e.status === 'Pending');
     return pendingEvidences;
   };
