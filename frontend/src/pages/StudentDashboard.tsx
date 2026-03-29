@@ -187,6 +187,26 @@ const StudentDashboard: React.FC<{
   const [showUnsubmitModal, setShowUnsubmitModal] = useState(false);
   const [isUnsubmittingAction, setIsUnsubmittingAction] = useState(false);
 
+  const isLocked = ['Submitted', 'Pending', 'Approved', 'Processing'].includes(student.status);
+  const isProcessing = student.status === 'Processing';
+  const isApproved = student.status === 'Approved';
+  const isRejected = student.status === 'Rejected';
+
+  // Submission Window Logic
+  const isSubmissionOpen = React.useMemo(() => {
+    if (!systemSettings) return true; // Default to open if no settings found
+    if (!systemSettings.TrangThaiMo) return false;
+
+    const now = new Date();
+    const start = systemSettings.ThoiGianBatDau ? new Date(systemSettings.ThoiGianBatDau) : null;
+    const end = systemSettings.ThoiGianKetThuc ? new Date(systemSettings.ThoiGianKetThuc) : null;
+
+    if (start && now < start) return false;
+    if (end && now > end) return false;
+
+    return true;
+  }, [systemSettings]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-6">
@@ -196,9 +216,10 @@ const StudentDashboard: React.FC<{
     );
   }
 
-  // CHECK DEADLINE AND EDIT PERMISSION - ONLY SHOW IF EXPLICITLY FALSE
-  if (student && student.can_edit_profile === false) {
-    return <DeadlineClosedView message={student.submission_msg} />;
+  // CHECK DEADLINE AND EDIT PERMISSION - REFINED LOGIC
+  // Nếu cổng đóng VÀ sinh viên không ở trạng thái cần Giải trình -> Hiện màn hình thông báo tổng
+  if (!isSubmissionOpen && !isProcessing) {
+    return <DeadlineClosedView message={systemSettings?.ThongBaoHetHan || student.submission_msg} />;
   }
 
   if (!student) return <div className="text-center py-20 font-black text-blue-900 uppercase tracking-widest">Không tìm thấy thông tin sinh viên</div>;
@@ -411,26 +432,6 @@ const StudentDashboard: React.FC<{
       editingEvidence: ev
     });
   };
-
-  const isLocked = ['Submitted', 'Pending', 'Approved', 'Processing'].includes(student.status);
-  const isProcessing = student.status === 'Processing';
-  const isApproved = student.status === 'Approved';
-  const isRejected = student.status === 'Rejected';
-
-  // Submission Window Logic
-  const isSubmissionOpen = React.useMemo(() => {
-    if (!systemSettings) return true; // Default to open if no settings found
-    if (!systemSettings.TrangThaiMo) return false;
-
-    const now = new Date();
-    const start = systemSettings.ThoiGianBatDau ? new Date(systemSettings.ThoiGianBatDau) : null;
-    const end = systemSettings.ThoiGianKetThuc ? new Date(systemSettings.ThoiGianKetThuc) : null;
-
-    if (start && now < start) return false;
-    if (end && now > end) return false;
-
-    return true;
-  }, [systemSettings]);
 
   // Student can edit if window is open OR they are in "Processing" state (for explanations)
   const canEdit = isSubmissionOpen || isProcessing;
