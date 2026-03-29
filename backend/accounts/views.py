@@ -117,17 +117,31 @@ class MicrosoftLoginView(APIView):
             'client_secret': client_secret,
         }
 
-        token_r = requests.post(token_url, data=token_data)
-        if not token_r.ok:
-            return Response({'detail': 'Lấy token từ Microsoft thất bại', 'ms_error': token_r.json()}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            token_r = requests.post(token_url, data=token_data, timeout=15)
+            if not token_r.ok:
+                print(f"MS Token Error: {token_r.text}")
+                return Response({
+                    'detail': 'Lấy token từ Microsoft thất bại', 
+                    'ms_error': token_r.json()
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except requests.exceptions.Timeout:
+            return Response({'detail': 'Kết nối đổi mã token Microsoft quá hạn.'}, status=status.HTTP_504_GATEWAY_TIMEOUT)
+        except Exception as e:
+            return Response({'detail': f'Lỗi hệ thống khi gọi Microsoft: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         access_token = token_r.json().get('access_token')
 
         # 2. Get user profile from Graph API
         user_url = 'https://graph.microsoft.com/v1.0/me'
-        user_r = requests.get(user_url, headers={'Authorization': f'Bearer {access_token}'})
-        if not user_r.ok:
-            return Response({'detail': 'Không thể lấy thông tin người dùng từ Microsoft'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_r = requests.get(user_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=10)
+            if not user_r.ok:
+                return Response({'detail': 'Không thể lấy thông tin người dùng từ Microsoft'}, status=status.HTTP_400_BAD_REQUEST)
+        except requests.exceptions.Timeout:
+            return Response({'detail': 'Lấy profile Microsoft quá hạn.'}, status=status.HTTP_504_GATEWAY_TIMEOUT)
+        except Exception as e:
+            return Response({'detail': f'Lỗi lấy profile: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         ms_user = user_r.json()
         email = ms_user.get('mail') or ms_user.get('userPrincipalName')
