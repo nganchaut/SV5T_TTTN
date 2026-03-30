@@ -192,12 +192,9 @@ const StudentDashboard: React.FC<{
   const isApproved = student.status === 'Approved';
   const isRejected = student.status === 'Rejected';
 
-  // Xác định hồ sơ đã được xem xét bởi Admin chưa:
-  // - Đã từng chuyển sang các trạng thái thẩm định
-  // - Hoặc có ít nhất một mục minh chứng/xác minh ĐÃ được xử lý (khác Pending)
-  const isReviewed = ['Processing', 'Approved', 'Rejected'].includes(student.status) || 
-                    Object.values(student.verifications).some((v: any) => v.status && v.status !== 'Pending') ||
-                    Object.values(student.evidences).flat().some((e: any) => e.status !== 'Pending');
+  // GIẢNG VIÊN YÊU CẦU: Một khi đã nộp hồ sơ, không bao giờ được phép Hủy nộp nữa.
+  // Admin có thể đã xem dù chưa bấm bất kỳ nút nào.
+  const isReviewed = student.status !== 'Draft';
 
   // Submission Window Logic
   const isSubmissionOpen = React.useMemo(() => {
@@ -496,19 +493,10 @@ const StudentDashboard: React.FC<{
             Hồ sơ của bạn đã được gửi lên hệ thống và đang chờ Ban thư ký Hội Sinh viên thẩm định. Trong thời gian này, các tính năng chỉnh sửa sẽ tạm khóa để đảm bảo tính toàn vẹn của dữ liệu.
           </p>
           <div className="mt-8 pt-8 border-t border-white/10 flex flex-wrap gap-4">
-            {/* GIẢNG VIÊN YÊU CẦU: Nếu đã được Admin xem (isReviewed) thì không cho Hủy nộp nữa để đảm bảo tính toàn vẹn */}
-            {flaggedEvidences.length === 0 && flaggedFields.length === 0 && canEdit && !isReviewed && (
-              <button 
-                onClick={() => setShowUnsubmitModal(true)} 
-                className="px-8 py-3 bg-white text-blue-600 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all active:scale-95 border border-gray-100"
-              >
-                Hủy nộp để chỉnh sửa
-              </button>
-            )}
-            {/* Nếu đã được xem nhưng vẫn trong hạn nộp -> Thông báo lý do không được hủy */}
-            {isReviewed && canEdit && student.status === 'Submitted' && (
+            {/* GIẢNG VIÊN YÊU CẦU: Một khi đã nộp (Submitted), ẩn hoàn toàn nút Hủy nộp */}
+            {canEdit && student.status === 'Submitted' && (
                <div className="px-6 py-3 bg-white/10 border border-white/20 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                  <i className="fas fa-info-circle text-orange-400"></i> Admin đã thẩm định hồ sơ, bạn không thể tự ý hủy nộp
+                  <i className="fas fa-lock text-orange-400"></i> Hồ sơ đã được nộp — Không thể chỉnh sửa hoặc hủy nộp
                </div>
             )}
             {!canEdit && student.status === 'Submitted' && (
