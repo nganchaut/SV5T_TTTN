@@ -37,6 +37,7 @@ class SinhVienProfileSerializer(serializers.ModelSerializer):
     is_submission_open = serializers.SerializerMethodField()
     can_edit_profile = serializers.SerializerMethodField()
     submission_msg = serializers.SerializerMethodField()
+    da_xem_xet = serializers.SerializerMethodField()
 
     class Meta:
         model = SinhVien
@@ -48,7 +49,7 @@ class SinhVienProfileSerializer(serializers.ModelSerializer):
             'TrangThaiHoSo', 'TrangThaiDisplay',
             'TongDiem', 'PhanHoiChung',
             'xac_minh', 'minh_chung', 'NgayTao', 'NgayCapNhat',
-            'is_submission_open', 'can_edit_profile', 'submission_msg'
+            'is_submission_open', 'can_edit_profile', 'submission_msg', 'da_xem_xet'
         ]
         read_only_fields = ['id', 'MaSV', 'TongDiem', 'TrangThaiHoSo', 'NgayTao', 'NgayCapNhat']
 
@@ -69,6 +70,13 @@ class SinhVienProfileSerializer(serializers.ModelSerializer):
         if is_submission_open():
             return config.ThongBaoHieuLuc
         return config.ThongBaoHetHan
+
+    def get_da_xem_xet(self, obj):
+        """True nếu Admin đã từng tác động hồ sơ (qua LichSuHoSo).
+        Dùng audit trail thay vì trạng thái hiện tại để tránh bị reset sau giải trình."""
+        return obj.lich_su.filter(
+            TrangThaiSau__in=['Processing', 'Approved', 'Rejected']
+        ).exists()
 
 
 class SinhVienUpdateSerializer(serializers.ModelSerializer):

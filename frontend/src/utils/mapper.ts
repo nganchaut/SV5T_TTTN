@@ -100,6 +100,7 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
     evidences,
     totalScore: Number(d.TongDiem || 0),
     feedback: d.PhanHoiChung || '',
-    verifications
+    verifications,
+    daXemXet: Boolean(d.da_xem_xet), // true nếu admin đã từng tác động (dùng audit trail)
   };
 };

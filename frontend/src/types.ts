@@ -95,6 +95,7 @@ export interface StudentProfile {
   is_submission_open?: boolean;
   can_edit_profile?: boolean;
   submission_msg?: string;
+  daXemXet?: boolean; // true nếu Admin đã từng tác động hồ sơ (audit trail)
 }
 
 export interface FeaturedFace {
