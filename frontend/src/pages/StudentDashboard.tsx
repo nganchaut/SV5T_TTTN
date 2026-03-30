@@ -194,9 +194,11 @@ const StudentDashboard: React.FC<{
 
   // isReviewed = true nếu Admin đã từng tác động hồ sơ.
   // Dùng field da_xem_xet từ Backend (dựa vào LichSuHoSo audit trail)
-  // để tránh bị reset về false sau khi SV giải trình xong (evidence reset về Pending).
+  // hoặc kiểm tra nếu admin đã từng feedback hoặc student đã từng giải trình (nếu Admin chỉ bắt lỗi mc mà không đổi trạng thái tổng)
   const isReviewed = student.daXemXet === true ||
-    ['Processing', 'Approved', 'Rejected'].includes(student.status);
+    ['Processing', 'Approved', 'Rejected'].includes(student.status) ||
+    Object.values(student.verifications).some((v: any) => (v?.status && v.status !== 'Pending') || !!v?.adminFeedback || !!v?.explanation) ||
+    Object.values(student.evidences).flat().some((e: any) => (e?.status && e.status !== 'Pending') || !!e?.adminFeedback || !!e?.studentExplanation);
 
   // Submission Window Logic
   const isSubmissionOpen = React.useMemo(() => {
