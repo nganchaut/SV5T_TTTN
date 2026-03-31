@@ -77,7 +77,8 @@ export const mapBackendStudentToFrontend = (d: any): StudentProfile => {
           status: mc.TrangThai,
           adminFeedback: mc.PhanHoiAdmin || '',
           studentExplanation: mc.GiaiTrinhSV || '',
-          explanationDate: mc.NgayGiaiTrinh || ''
+          explanationDate: mc.NgayGiaiTrinh || '',
+          evidenceDate: mc.NgayMinhChung || ''
         });
       }
     });

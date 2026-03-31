@@ -56,7 +56,9 @@ export interface Evidence {
   adminFeedback?: string;
   studentExplanation?: string;
   explanationDate?: string;
+  evidenceDate?: string;  // NgayMinhChung: Ngày cấp / Ngày thực hiện
 }
+
 
 export interface FieldVerification {
   status: 'Pending' | 'Approved' | 'Rejected' | 'NeedsExplanation';
