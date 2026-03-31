@@ -51,11 +51,8 @@ class MinhChungListView(APIView):
             return Response({'detail': 'Hồ sơ đã được duyệt, không thể nộp thêm minh chứng.'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = MinhChungSubmitSerializer(data=request.data)
-        print(f"[DEBUG-EVIDENCE-POST] Received data keys: {list(request.data.keys())}")
-        print(f"[DEBUG-EVIDENCE-POST] NgayMinhChung = {request.data.get('NgayMinhChung', 'NOT_FOUND')}")
         serializer.is_valid(raise_exception=True)
         mc = serializer.save(SinhVien=sv)
-        print(f"[DEBUG-EVIDENCE-POST] Saved mc.NgayMinhChung = {mc.NgayMinhChung}")
         sv.tinh_tong_diem() # Cập nhật điểm ngay
         return Response(SinhVienProfileSerializer(sv).data, status=status.HTTP_201_CREATED)
 

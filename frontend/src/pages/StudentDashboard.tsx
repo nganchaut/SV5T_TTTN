@@ -1106,6 +1106,13 @@ const StudentDashboard: React.FC<{
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-2">
+                              {ev.evidenceDate && (
+                                <div className="text-[10px] text-purple-600 font-bold bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-100 mb-3 w-fit flex items-center gap-2">
+                                  <i className="far fa-calendar-alt"></i>
+                                  Ngày cấp/thực hiện: {ev.evidenceDate}
+                                </div>
+                              )}
+
                                 {ev.danh_sach_file && ev.danh_sach_file.length > 0 ? (
                                   ev.danh_sach_file.map((f, fIdx) => (
                                     <a key={fIdx} href={f.FileUrl} target="_blank" rel="noreferrer" className="text-[9px] text-blue-600 hover:underline flex items-center gap-1 bg-white px-2 py-1 border rounded">
